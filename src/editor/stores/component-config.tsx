@@ -55,6 +55,7 @@ export interface ComponentConfig {
     defaultProps: Record<string, unknown>;
     // component: any;
     desc: string;
+    tooltip?: string;
     /** 是否允许包含子节点（容器型组件） */
     allowChildren?: boolean;
     bindableProps?: string[];
@@ -82,6 +83,7 @@ export const useComponentConfigStore = create<State & Action>(
                 name: 'Container',
                 defaultProps: {},
                 desc: '容器',
+                tooltip: '用来放一组内容',
                 dev: ContainerDev,
                 prod: ContainerProd,
                 allowChildren: true,
@@ -93,6 +95,7 @@ export const useComponentConfigStore = create<State & Action>(
                     text: '按钮'
                 },
                 desc: '按钮',
+                tooltip: '用来点击执行操作',
                 dev: ButtonDev,
                 prod: ButtonProd,
                 bindableProps: ['text'],
@@ -135,6 +138,7 @@ export const useComponentConfigStore = create<State & Action>(
                 name: 'Page',
                 defaultProps: {},
                 desc: '页面',
+                tooltip: '用来承载整个页面',
                 dev: PageDev,
                 prod: PageProd,
                 allowChildren: true,
@@ -145,6 +149,7 @@ export const useComponentConfigStore = create<State & Action>(
                     text: '文本内容'
                 },
                 desc: '文本',
+                tooltip: '用来显示一段文字',
                 dev: TextDev,
                 prod: TextProd,
                 bindableProps: ['text'],
@@ -184,6 +189,7 @@ export const useComponentConfigStore = create<State & Action>(
                     text: '标题'
                 },
                 desc: '标题',
+                tooltip: '用来显示标题',
                 dev: TitleDev,
                 prod: TitleProd,
                 bindableProps: ['text'],
@@ -231,6 +237,7 @@ export const useComponentConfigStore = create<State & Action>(
                     value: ''
                 },
                 desc: '输入框',
+                tooltip: '用来输入内容',
                 dev: InputDev,
                 prod: InputProd,
                 bindableProps: ['value', 'placeholder'],
@@ -268,6 +275,7 @@ export const useComponentConfigStore = create<State & Action>(
                     height: 200
                 },
                 desc: '图片',
+                tooltip: '用来显示图片',
                 dev: ImageDev,
                 prod: ImageProd,
                 setter: [
@@ -306,6 +314,7 @@ export const useComponentConfigStore = create<State & Action>(
                     title: '卡片标题'
                 },
                 desc: '卡片',
+                tooltip: '用来放一块内容',
                 dev: CardDev,
                 prod: CardProd,
                 allowChildren: true,
@@ -337,6 +346,7 @@ export const useComponentConfigStore = create<State & Action>(
                     dataText: '张三,大一,正常\n李四,大二,请假',
                 },
                 desc: '表格',
+                tooltip: '用来显示表格数据',
                 dev: TableDev,
                 prod: TableProd,
                 bindableProps: ['dataSource'],
@@ -370,6 +380,7 @@ export const useComponentConfigStore = create<State & Action>(
                     open: true,
                 },
                 desc: '弹窗',
+                tooltip: '用来弹出一个窗口',
                 dev: ModalDev,
                 prod: ModalProd,
                 allowChildren: true,
@@ -418,6 +429,7 @@ export const useComponentConfigStore = create<State & Action>(
                     itemsText: '概览,趋势,明细',
                 },
                 desc: '选项卡',
+                tooltip: '用来切换不同内容',
                 dev: TabsDev,
                 prod: TabsProd,
                 setter: [
@@ -443,6 +455,7 @@ export const useComponentConfigStore = create<State & Action>(
                     value: '',
                 },
                 desc: '下拉框',
+                tooltip: '用来从列表中选择',
                 dev: SelectDev,
                 prod: SelectProd,
                 bindableProps: ['value', 'options'],
@@ -479,6 +492,7 @@ export const useComponentConfigStore = create<State & Action>(
                     uncheckedText: '关',
                 },
                 desc: '开关',
+                tooltip: '用来打开或关闭状态',
                 dev: SwitchDev,
                 prod: SwitchProd,
                 bindableProps: ['checked'],
@@ -511,6 +525,7 @@ export const useComponentConfigStore = create<State & Action>(
                     value: '',
                 },
                 desc: '日期选择',
+                tooltip: '用来选择日期',
                 dev: DatePickerDev,
                 prod: DatePickerProd,
                 bindableProps: ['value'],
@@ -541,6 +556,7 @@ export const useComponentConfigStore = create<State & Action>(
                     layout: 'vertical',
                 },
                 desc: '表单',
+                tooltip: '用来填写并提交信息',
                 dev: FormDev,
                 prod: FormProd,
                 allowChildren: true,
@@ -577,6 +593,7 @@ export const useComponentConfigStore = create<State & Action>(
                     orientation: 'center',
                 },
                 desc: '分割线',
+                tooltip: '用来分隔内容',
                 dev: DividerDev,
                 prod: DividerProd,
                 setter: [
@@ -604,6 +621,7 @@ export const useComponentConfigStore = create<State & Action>(
                     color: 'default',
                 },
                 desc: '标签',
+                tooltip: '用来标记分类或状态',
                 dev: TagDev,
                 prod: TagProd,
                 setter: [
@@ -625,6 +643,7 @@ export const useComponentConfigStore = create<State & Action>(
                     gutter: 16,
                 },
                 desc: '行布局',
+                tooltip: '用来横向排列内容',
                 dev: RowDev,
                 prod: RowProd,
                 allowChildren: true,
@@ -642,6 +661,7 @@ export const useComponentConfigStore = create<State & Action>(
                     span: 12,
                 },
                 desc: '列布局',
+                tooltip: '用来把内容分成列',
                 dev: ColDev,
                 prod: ColProd,
                 allowChildren: true,
@@ -661,6 +681,7 @@ export const useComponentConfigStore = create<State & Action>(
                     dataText: '访问量,120\n注册数,80\n留存,45',
                 },
                 desc: '图表',
+                tooltip: '用来显示数据图表',
                 dev: ChartDev,
                 prod: ChartProd,
                 bindableProps: ['dataSource'],

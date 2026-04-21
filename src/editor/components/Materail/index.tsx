@@ -12,7 +12,7 @@ export default function Materail() {
     <div>
       {
         components.map((item, index) => {
-          return <MaterialItem key={item.name + index} name={item.name} />
+          return <MaterialItem key={item.name + index} name={item.name} tooltip={item.tooltip} />
         })
       }
     </div>
