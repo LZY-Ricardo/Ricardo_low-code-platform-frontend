@@ -1,23 +1,29 @@
 /**
  * 项目列表页面
  */
-import { useEffect, useState } from 'react';
-import { Button, Card, Empty, Modal, Input, message, Popconfirm } from 'antd';
+import { useEffect, useState, useCallback } from 'react';
+import { Button, Card, Empty, Modal, Input, message, Popconfirm, Spin, Select } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   FolderOpenOutlined,
   LogoutOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '../editor/stores/project';
 import { useAuthStore } from '../stores/auth';
+import { useTemplateStore } from '../stores/template';
 import type { Project } from '../editor/utils/storage';
 import MigrationModal from '../components/MigrationModal';
-import { getAllTemplates, normalizeTemplatePages, type ProjectTemplate } from '../editor/utils/template-storage';
+import { normalizeTemplatePages } from '../editor/utils/template-storage';
 import { saveProjectMeta } from '../editor/utils/project-meta';
 import { THEME_PRESETS, useThemeStore } from '../stores/theme';
+import TemplateCard from '../editor/components/TemplateCard';
+import EditTemplateModal from '../editor/components/EditTemplateModal';
+import type { TemplateItem, TemplateCategory } from '../api/templates';
+import { CATEGORY_LABELS } from '../api/templates';
 
 export default function Projects() {
   const navigate = useNavigate();
@@ -31,6 +37,15 @@ export default function Projects() {
     renameProject,
     switchProject,
   } = useProjectStore();
+  const {
+    templates,
+    page: templatePage,
+    totalPages: templateTotalPages,
+    loading: templateLoading,
+    loadTemplates,
+    setFilter,
+    deleteTemplate: deleteTemplateFromStore,
+  } = useTemplateStore();
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
@@ -38,15 +53,16 @@ export default function Projects() {
   const [renameProjectId, setRenameProjectId] = useState<string | null>(null);
   const [renameProjectName, setRenameProjectName] = useState('');
   const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'builtIn' | 'mine'>('all');
+  const [editTemplate, setEditTemplate] = useState<TemplateItem | null>(null);
 
-  // 页面加载时加载项目列表
+  // 页面加载时加载项目列表和模板列表
   useEffect(() => {
     loadProjects();
-    // 显示迁移提示
     setShowMigrationModal(true);
-    setTemplates(getAllTemplates());
-  }, [loadProjects]);
+    loadTemplates();
+  }, [loadProjects, loadTemplates]);
 
   // 创建新项目
   const handleCreateProject = async () => {
@@ -74,24 +90,74 @@ export default function Projects() {
     navigate(`/editor/${project.id}`);
   };
 
-  const handleCreateFromTemplate = async (template: ProjectTemplate) => {
+  const handleCreateFromTemplate = async (template: TemplateItem) => {
     try {
-      const project = await createProject(`${template.name}_${Date.now()}`, template.components);
-      const pages = normalizeTemplatePages(template);
+      // 从 API 获取完整模板数据
+      const detail = await useTemplateStore.getState().getTemplate(template.id);
+      const project = await createProject(`${detail.name}_${Date.now()}`, detail.components);
+      const pages = normalizeTemplatePages({
+        pages: detail.pages,
+        components: detail.components,
+      } as any);
       saveProjectMeta(project.id, {
-        dataSources: template.dataSources,
-        variables: template.variables,
+        dataSources: detail.dataSources,
+        variables: detail.variables,
         pages,
         activePageId: pages[0]?.id ?? null,
-        sharedStyles: template.sharedStyles,
-        themeId: template.themeId,
+        sharedStyles: detail.sharedStyles,
+        themeId: detail.themeId,
       });
+      // 增加使用计数
+      await useTemplateStore.getState().useTemplate(template.id);
       message.success(`已从模板 "${template.name}" 创建项目`);
       navigate(`/editor/${project.id}`);
     } catch {
       message.error('模板创建失败');
     }
   };
+
+  // 模板搜索
+  const handleSearch = useCallback((value: string) => {
+    setSearchText(value);
+    setFilter({ search: value || undefined });
+  }, [setFilter]);
+
+  // 模板分类筛选
+  const handleCategoryChange = useCallback((value: string | undefined) => {
+    setFilter({ category: value as TemplateCategory | undefined });
+  }, [setFilter]);
+
+  // 模板来源筛选
+  const handleFilterChange = useCallback((filter: 'all' | 'builtIn' | 'mine') => {
+    setActiveFilter(filter);
+    if (filter === 'all') {
+      setFilter({ builtIn: undefined, mine: undefined });
+    } else if (filter === 'builtIn') {
+      setFilter({ builtIn: true, mine: undefined });
+    } else {
+      setFilter({ builtIn: undefined, mine: true });
+    }
+  }, [setFilter]);
+
+  // 删除模板
+  const handleDeleteTemplate = async (template: TemplateItem) => {
+    try {
+      await deleteTemplateFromStore(template.id);
+      message.success(`模板 "${template.name}" 已删除`);
+    } catch {
+      message.error('删除模板失败');
+    }
+  };
+
+  // 编辑模板
+  const handleEditTemplate = (template: TemplateItem) => {
+    setEditTemplate(template);
+  };
+
+  // 分页
+  const handleTemplatePageChange = useCallback((newPage: number) => {
+    loadTemplates({ page: newPage });
+  }, [loadTemplates]);
 
   // 删除项目
   const handleDeleteProject = async (projectId: string, projectName: string) => {
@@ -206,26 +272,89 @@ export default function Projects() {
 
         <div className="mb-10">
           <h3 className="mb-4 text-lg font-semibold text-gray-800">模板中心</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template) => (
-              <Card key={template.id} hoverable>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-base font-semibold text-gray-900">{template.name}</h4>
-                    {template.builtIn ? (
-                      <span className="rounded-full bg-blue-50 px-2 py-1 text-xs text-blue-600">内置</span>
-                    ) : (
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-600">自定义</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500">{template.description}</p>
-                  <Button type="primary" onClick={() => handleCreateFromTemplate(template)}>
-                    从模板创建
-                  </Button>
-                </div>
-              </Card>
-            ))}
+
+          {/* 搜索和筛选栏 */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <Input
+              placeholder="搜索模板..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              allowClear
+              className="max-w-xs"
+            />
+            <Select
+              placeholder="全部分类"
+              allowClear
+              style={{ width: 120 }}
+              onChange={handleCategoryChange}
+              options={Object.entries(CATEGORY_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              }))}
+            />
+            <div className="flex gap-1">
+              {([
+                { key: 'all', label: '全部' },
+                { key: 'builtIn', label: '内置' },
+                { key: 'mine', label: '我的模板' },
+              ] as const).map((item) => (
+                <Button
+                  key={item.key}
+                  size="small"
+                  type={activeFilter === item.key ? 'primary' : 'default'}
+                  onClick={() => handleFilterChange(item.key)}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </div>
           </div>
+
+          {/* 模板列表 */}
+          <Spin spinning={templateLoading}>
+            {templates.length === 0 && !templateLoading ? (
+              <Empty
+                description="暂无模板"
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {templates.map((template) => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    onUse={handleCreateFromTemplate}
+                    onEdit={handleEditTemplate}
+                    onDelete={handleDeleteTemplate}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* 分页 */}
+            {templateTotalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <Button
+                  size="small"
+                  disabled={templatePage <= 1}
+                  onClick={() => handleTemplatePageChange(templatePage - 1)}
+                >
+                  上一页
+                </Button>
+                <span className="text-sm text-gray-500">
+                  {templatePage} / {templateTotalPages}
+                </span>
+                <Button
+                  size="small"
+                  disabled={templatePage >= templateTotalPages}
+                  onClick={() => handleTemplatePageChange(templatePage + 1)}
+                >
+                  下一页
+                </Button>
+              </div>
+            )}
+          </Spin>
         </div>
 
         {/* 项目列表 */}
@@ -346,6 +475,14 @@ export default function Projects() {
           // 迁移成功后重新加载项目列表
           loadProjects();
         }}
+      />
+
+      {/* 编辑模板对话框 */}
+      <EditTemplateModal
+        open={!!editTemplate}
+        template={editTemplate}
+        onCancel={() => setEditTemplate(null)}
+        onSuccess={() => setEditTemplate(null)}
       />
     </div>
   );

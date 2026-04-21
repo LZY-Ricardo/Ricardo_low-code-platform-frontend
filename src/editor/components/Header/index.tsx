@@ -27,9 +27,10 @@ import type { MenuProps } from 'antd'
 import ExportModal from '../ExportModal'
 import { formatSaveStatusText } from '../../utils/save-status'
 import { getNextCanvasScaleLabel } from '../../utils/canvas-scale'
-import { saveTemplate } from '../../utils/template-storage'
 import { useThemeStore } from '../../../stores/theme'
 import { buildPageMenuItems } from './page-menu'
+import SaveTemplateModal from '../SaveTemplateModal'
+import { generateThumbnail } from '../../utils/thumbnail'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -61,6 +62,8 @@ export default function Header() {
   const [exportModalVisible, setExportModalVisible] = useState(false)
   const [renamePageModalVisible, setRenamePageModalVisible] = useState(false)
   const [renamePageName, setRenamePageName] = useState('')
+  const [saveTemplateModalVisible, setSaveTemplateModalVisible] = useState(false)
+  const [templateThumbnail, setTemplateThumbnail] = useState<string | null>(null)
   const activePageName = pages.find((item) => item.id === activePageId)?.name ?? '页面'
 
   const handleSave = async () => {
@@ -72,25 +75,22 @@ export default function Header() {
     }
   }
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     if (!currentProject) {
       message.warning('当前没有可保存的项目')
       return
     }
 
-    saveTemplate({
-      id: `tpl_${Date.now()}`,
-      name: `${currentProject.name} 模板`,
-      description: '从当前项目生成',
-      components,
-      pages,
-      dataSources,
-      variables,
-      sharedStyles,
-      themeId: currentThemeId,
-      builtIn: false,
-    })
-    message.success('已保存为模板')
+    // 尝试生成缩略图
+    const canvasEl = document.querySelector('.canvas-area') as HTMLElement
+      || document.querySelector('[data-canvas]') as HTMLElement
+      || document.querySelector('.edit-area') as HTMLElement
+    let thumb: string | null = null
+    if (canvasEl) {
+      thumb = await generateThumbnail(canvasEl)
+    }
+    setTemplateThumbnail(thumb)
+    setSaveTemplateModalVisible(true)
   }
 
   const handleAddPage = () => {
@@ -462,6 +462,23 @@ export default function Header() {
       <ExportModal
         visible={exportModalVisible}
         onClose={() => setExportModalVisible(false)}
+      />
+
+      <SaveTemplateModal
+        open={saveTemplateModalVisible}
+        onCancel={() => setSaveTemplateModalVisible(false)}
+        onSuccess={() => {
+          setSaveTemplateModalVisible(false)
+          message.success('已保存为模板')
+        }}
+        defaultName={currentProject ? `${currentProject.name} 模板` : ''}
+        components={components}
+        pages={pages}
+        dataSources={dataSources}
+        variables={variables}
+        sharedStyles={sharedStyles}
+        themeId={currentThemeId}
+        thumbnail={templateThumbnail}
       />
     </div>
   )
