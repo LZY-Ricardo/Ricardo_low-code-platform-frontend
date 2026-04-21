@@ -29,6 +29,7 @@ import { formatSaveStatusText } from '../../utils/save-status'
 import { getNextCanvasScaleLabel } from '../../utils/canvas-scale'
 import { saveTemplate } from '../../utils/template-storage'
 import { useThemeStore } from '../../../stores/theme'
+import { buildPageMenuItems } from './page-menu'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -240,15 +241,11 @@ export default function Header() {
     )
   }))
 
-  const pageMenuItems: MenuProps['items'] = pages.map((page) => ({
-    key: page.id,
-    label: (
-      <span onClick={() => handleSwitchPage(page.id)}>
-        {page.name}
-        {activePageId === page.id && ' (当前)'}
-      </span>
-    ),
-  }))
+  const pageMenuItems = buildPageMenuItems({
+    pages,
+    activePageId,
+    onSwitchPage: handleSwitchPage,
+  })
 
   const moreMenuItems: MenuProps['items'] = [
     {
