@@ -23,7 +23,7 @@ export class HTMLExporter extends BaseExporter {
   <title>${this.escapeHtml(projectName)}</title>
   ${includeAntdCDN ? this.getAntdCDN() : ''}
   <style>
-${this.getBaseStyles()}
+${this.getBaseStyles(options.themeColors)}
   </style>
 </head>
 <body>
@@ -262,7 +262,10 @@ ${this.getInteractiveScripts()}
   /**
    * 获取基础样式
    */
-  private getBaseStyles(): string {
+  private getBaseStyles(themeColors?: { primary: string; primaryHover: string }): string {
+    const primary = themeColors?.primary || '#1677ff'
+    const primaryHover = themeColors?.primaryHover || '#4096ff'
+
     return `    * {
       box-sizing: border-box;
       margin: 0;
@@ -294,14 +297,14 @@ ${this.getInteractiveScripts()}
     }
 
     .btn-primary {
-      background-color: #1677ff;
+      background-color: ${primary};
       color: white;
-      border-color: #1677ff;
+      border-color: ${primary};
     }
 
     .btn-primary:hover {
-      background-color: #4096ff;
-      border-color: #4096ff;
+      background-color: ${primaryHover};
+      border-color: ${primaryHover};
     }
 
     .btn-default {
@@ -311,8 +314,8 @@ ${this.getInteractiveScripts()}
     }
 
     .btn-default:hover {
-      color: #4096ff;
-      border-color: #4096ff;
+      color: ${primaryHover};
+      border-color: ${primaryHover};
     }
 
     .card {
@@ -333,13 +336,13 @@ ${this.getInteractiveScripts()}
     }
 
     input[type="text"]:hover {
-      border-color: #4096ff;
+      border-color: ${primaryHover};
     }
 
     input[type="text"]:focus {
-      border-color: #4096ff;
+      border-color: ${primaryHover};
       outline: 0;
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+      box-shadow: 0 0 0 2px ${primary}1a;
     }`
   }
 

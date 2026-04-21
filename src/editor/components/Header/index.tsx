@@ -222,15 +222,15 @@ export default function Header() {
           {currentProject?.id === project.id && ' (当前)'}
         </span>
         <Space size="small" onClick={(e) => e.stopPropagation()}>
-          <EditOutlined 
-            className="text-blue-500 hover:text-blue-700"
+          <EditOutlined
+            className="text-accent hover:text-accent-hover"
             onClick={(e) => {
               e.stopPropagation()
               handleRenameClick(project.id, project.name)
             }}
           />
-          <DeleteOutlined 
-            className="text-red-500 hover:text-red-700"
+          <DeleteOutlined
+            className="text-danger hover:text-danger/80"
             onClick={(e) => {
               e.stopPropagation()
               handleDeleteProject(project.id, project.name)

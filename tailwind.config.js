@@ -14,6 +14,8 @@ export default {
         'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
         'accent': 'rgb(var(--color-primary) / <alpha-value>)',
         'accent-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
+        'success': 'rgb(var(--color-success) / <alpha-value>)',
+        'danger': 'rgb(var(--color-danger) / <alpha-value>)',
       },
       boxShadow: {
         'soft': '0 2px 8px rgba(0, 0, 0, 0.04)',

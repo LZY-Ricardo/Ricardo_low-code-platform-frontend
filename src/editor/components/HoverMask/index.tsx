@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { getComponentById, useComponentsStore } from '../../stores/components'
+import { useThemeColors } from '../../../stores/theme'
 
 interface HoverMaskProps {
     containerClassName: string
@@ -11,6 +12,7 @@ interface HoverMaskProps {
 // HoverMask 会在鼠标移入组件时显示，并能完整覆盖整个组件
 export default function HoverMask({ containerClassName, componentId, portalWrapperClassName }: HoverMaskProps) {
     const { components } = useComponentsStore()
+    const themeColors = useThemeColors()
 
     const [position, setPosition] = useState({
         top: 0,
@@ -127,8 +129,8 @@ export default function HoverMask({ containerClassName, componentId, portalWrapp
                 left: position.left,
                 width: position.width,
                 height: position.height,
-                backgroundColor: 'rgba(0, 0, 255, 0.1)',
-                border: '1px dashed blue',
+                backgroundColor: themeColors.primaryAlpha(0.1),
+                border: `1px dashed ${themeColors.primary}`,
                 borderRadius: 4,
                 boxSizing: 'border-box',
                 pointerEvents: 'none',
@@ -149,7 +151,7 @@ export default function HoverMask({ containerClassName, componentId, portalWrapp
                 <div
                     style={{
                         padding: '0px 8px',
-                        backgroundColor: 'blue',
+                        backgroundColor: themeColors.primary,
                         color: '#fff',
                         borderRadius: 4,
                         cursor: 'pointer',

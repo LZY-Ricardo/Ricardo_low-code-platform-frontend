@@ -3,6 +3,7 @@ import { Modal, Button, message } from 'antd'
 import { ExportFormat, ExporterFactory, type ExportOptions } from '@/editor/utils/exporters'
 import { useComponentsStore } from '@/editor/stores/components'
 import { useProjectStore } from '@/editor/stores/project'
+import { useThemeColors } from '@/stores/theme'
 import FormatSelector from './FormatSelector'
 import OptionsPanel from './OptionsPanel'
 
@@ -17,6 +18,7 @@ interface ExportModalProps {
 export default function ExportModal({ visible, onClose }: ExportModalProps) {
   const { components } = useComponentsStore()
   const { currentProject } = useProjectStore()
+  const themeColors = useThemeColors()
 
   // 导出格式
   const [format, setFormat] = useState<ExportFormat>(ExportFormat.JSON)
@@ -71,7 +73,13 @@ export default function ExportModal({ visible, onClose }: ExportModalProps) {
       const exporter = ExporterFactory.create(format)
 
       // 执行导出
-      const result = await exporter.export(components, options)
+      const result = await exporter.export(components, {
+        ...options,
+        themeColors: {
+          primary: themeColors.primaryHex,
+          primaryHover: themeColors.primaryHoverHex,
+        }
+      })
 
       if (result.success) {
         message.success(result.message || '导出成功')

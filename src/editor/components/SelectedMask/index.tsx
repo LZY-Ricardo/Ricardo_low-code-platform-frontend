@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Space, Popconfirm } from 'antd'
 import { getComponentById, useComponentsStore } from '../../stores/components'
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useThemeColors } from '../../../stores/theme'
 
 interface SelectedMaskProps {
     containerClassName: string
@@ -11,6 +12,7 @@ interface SelectedMaskProps {
 }
 
 export default function SelectedMask({ containerClassName, portalWrapperClassName, componentId }: SelectedMaskProps) {
+    const themeColors = useThemeColors()
     const [position, setPosition] = useState({
         top: 0,
         left: 0,
@@ -208,8 +210,8 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
                     position: "absolute",
                     left: position.left,
                     top: position.top,
-                    backgroundColor: "rgba(0, 0, 255, 0.1)",
-                    border: "1px dashed blue",
+                    backgroundColor: themeColors.primaryAlpha(0.1),
+                    border: `1px dashed ${themeColors.primary}`,
                     pointerEvents: "none",
                     width: position.width,
                     height: position.height,
@@ -234,7 +236,7 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
                     <div
                         style={{
                             padding: '0 8px',
-                            backgroundColor: 'blue',
+                            backgroundColor: themeColors.primary,
                             borderRadius: 4,
                             color: '#fff',
                             cursor: "pointer",
@@ -246,14 +248,14 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
                     {componentId !== 1 && (
                         <>
                             <div
-                                style={{ padding: '0 8px', backgroundColor: 'blue', pointerEvents: 'auto' }}
+                                style={{ padding: '0 8px', backgroundColor: themeColors.primary, pointerEvents: 'auto' }}
                                 onClick={handleCopy}
                             >
                                 <CopyOutlined style={{ color: '#fff', cursor: 'pointer' }} />
                             </div>
                             <div
                                 data-delete-button="true"
-                                style={{ padding: '0 8px', backgroundColor: 'blue', pointerEvents: 'auto' }}
+                                style={{ padding: '0 8px', backgroundColor: themeColors.primary, pointerEvents: 'auto' }}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <Popconfirm

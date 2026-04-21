@@ -16,6 +16,10 @@ export default function ThemeRuntime({ children }: { children: React.ReactNode }
     root.style.setProperty('--text-secondary', activeTheme.tokens.textSecondary)
     root.style.setProperty('--color-primary', activeTheme.tokens.colorPrimary)
     root.style.setProperty('--color-primary-hover', activeTheme.tokens.colorPrimaryHover)
+    root.style.setProperty('--color-success', activeTheme.tokens.colorSuccess)
+    root.style.setProperty('--color-danger', activeTheme.tokens.colorDanger)
+    root.style.setProperty('--scrollbar-thumb', activeTheme.tokens.scrollbarThumb)
+    root.style.setProperty('--scrollbar-track', activeTheme.tokens.scrollbarTrack)
   }, [activeTheme])
 
   return (

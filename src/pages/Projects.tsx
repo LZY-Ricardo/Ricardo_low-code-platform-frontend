@@ -107,6 +107,10 @@ export default function Projects() {
         sharedStyles: detail.sharedStyles,
         themeId: detail.themeId,
       });
+      // 应用模板的主题作为全局偏好
+      if (detail.themeId) {
+        setTheme(detail.themeId);
+      }
       // 增加使用计数
       await useTemplateStore.getState().useTemplate(template.id);
       message.success(`已从模板 "${template.name}" 创建项目`);

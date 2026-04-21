@@ -3,12 +3,14 @@ import type { LegacyRef } from 'react'
 import type { CommonComponentProps } from '../../interface'
 import { useMaterialDrop } from '../../hooks/useMaterialDrop'
 import { normalizeGridSpan } from './props'
+import { useThemeColors } from '../../../stores/theme'
 
 export default function ColDev({ id, span, children, styles }: CommonComponentProps) {
   const { canDrop, dropRef, contextHolder } = useMaterialDrop(
     ['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag'],
     id,
   )
+  const themeColors = useThemeColors()
 
   return (
     <>
@@ -20,10 +22,10 @@ export default function ColDev({ id, span, children, styles }: CommonComponentPr
         style={{
           ...styles,
           minHeight: 80,
-          border: canDrop ? '2px solid #1677ff' : '1px dashed #d9d9d9',
+          border: canDrop ? `2px solid ${themeColors.primary}` : `1px dashed rgb(var(--border-light))`,
           borderRadius: 8,
           padding: 12,
-          background: '#fafafa',
+          background: 'rgb(var(--bg-primary))',
         }}
       >
         {children}

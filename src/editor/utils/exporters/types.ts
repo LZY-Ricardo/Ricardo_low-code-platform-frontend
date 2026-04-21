@@ -38,6 +38,12 @@ export interface ExportOptions {
   // 代码片段选项 (Phase 3)
   snippetType?: 'jsx' | 'vue'
   schemaData?: unknown
+
+  // 主题颜色
+  themeColors?: {
+    primary: string
+    primaryHover: string
+  }
 }
 
 /**

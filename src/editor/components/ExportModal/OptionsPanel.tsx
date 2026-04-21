@@ -67,10 +67,10 @@ export default function OptionsPanel({ format, options, onChange }: OptionsPanel
         <div
           style={{
             padding: 12,
-            backgroundColor: '#f0f5ff',
+            backgroundColor: 'var(--scrollbar-track)',
             borderRadius: 6,
             fontSize: 13,
-            color: '#666'
+            color: 'rgb(var(--text-secondary))'
           }}
         >
           {getFormatTip(format)}

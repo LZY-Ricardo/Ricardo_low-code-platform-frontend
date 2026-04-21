@@ -1,5 +1,6 @@
 import { Radio, Space } from 'antd'
 import { ExportFormat } from '@/editor/utils/exporters'
+import { useThemeColors } from '@/stores/theme'
 
 interface FormatOption {
   value: ExportFormat
@@ -19,6 +20,8 @@ interface FormatSelectorProps {
  * 导出格式选择器组件
  */
 export default function FormatSelector({ value, onChange }: FormatSelectorProps) {
+  const themeColors = useThemeColors()
+
   const formats: FormatOption[] = [
     {
       value: ExportFormat.JSON,
@@ -71,14 +74,14 @@ export default function FormatSelector({ value, onChange }: FormatSelectorProps)
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '1px solid #d9d9d9',
+                border: `1px solid rgb(var(--border-light))`,
                 borderRadius: 8,
                 marginLeft: 0,
-                backgroundColor: format.disabled ? '#fafafa' : 'white',
+                backgroundColor: format.disabled ? 'rgb(var(--bg-primary))' : 'rgb(var(--bg-secondary))',
                 ...(value === format.value && !format.disabled
                   ? {
-                      borderColor: '#1677ff',
-                      backgroundColor: '#f0f5ff'
+                      borderColor: themeColors.primary,
+                      backgroundColor: themeColors.primaryAlpha(0.05)
                     }
                   : {})
               }}
@@ -95,8 +98,8 @@ export default function FormatSelector({ value, onChange }: FormatSelectorProps)
                         fontSize: 12,
                         padding: '0 8px',
                         borderRadius: 10,
-                        backgroundColor: '#f0f0f0',
-                        color: '#666'
+                        backgroundColor: 'rgb(var(--bg-primary))',
+                        color: 'rgb(var(--text-secondary))'
                       }}
                     >
                       {format.badge}
@@ -106,7 +109,7 @@ export default function FormatSelector({ value, onChange }: FormatSelectorProps)
                 <div
                   style={{
                     fontSize: 13,
-                    color: format.disabled ? '#999' : '#666',
+                    color: 'rgb(var(--text-secondary))',
                     marginTop: 4,
                     marginLeft: 28
                   }}

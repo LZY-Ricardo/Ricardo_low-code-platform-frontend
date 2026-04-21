@@ -3,12 +3,14 @@ import type { LegacyRef } from 'react'
 import type { CommonComponentProps } from '../../interface'
 import { useMaterialDrop } from '../../hooks/useMaterialDrop'
 import { normalizeFormLayout } from './props'
+import { useThemeColors } from '../../../stores/theme'
 
 export default function Form({ id, title, layout, children, styles }: CommonComponentProps) {
   const { canDrop, dropRef, contextHolder } = useMaterialDrop(
     ['Button', 'Container', 'Text', 'Title', 'Input', 'Select', 'Switch', 'DatePicker', 'Divider'],
     id,
   )
+  const themeColors = useThemeColors()
 
   return (
     <>
@@ -20,8 +22,8 @@ export default function Form({ id, title, layout, children, styles }: CommonComp
           ...styles,
           padding: 20,
           borderRadius: 12,
-          border: canDrop ? '2px solid #1677ff' : '1px dashed #d9d9d9',
-          background: '#fff',
+          border: canDrop ? `2px solid ${themeColors.primary}` : `1px dashed rgb(var(--border-light))`,
+          background: 'rgb(var(--bg-secondary))',
           minHeight: 160,
         }}
       >
@@ -29,7 +31,7 @@ export default function Form({ id, title, layout, children, styles }: CommonComp
           {typeof title === 'string' && title ? title : '表单'}
         </div>
         <AntdForm layout={normalizeFormLayout(layout)}>
-          {children ?? <div style={{ color: '#999' }}>拖入表单组件</div>}
+          {children ?? <div style={{ color: 'rgb(var(--text-secondary))' }}>拖入表单组件</div>}
         </AntdForm>
       </div>
     </>

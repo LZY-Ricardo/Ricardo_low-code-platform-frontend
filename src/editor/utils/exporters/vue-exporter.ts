@@ -48,7 +48,7 @@ export class VueExporter extends BaseExporter {
     srcFolder.file('style.css', this.generateGlobalStyles())
 
     const componentsFolder = srcFolder.folder('components')!
-    this.generateComponents(components, componentsFolder)
+    this.generateComponents(components, componentsFolder, options.themeColors)
 
     const publicFolder = zip.folder('public')!
     publicFolder.file('vite.svg', '')
@@ -397,14 +397,15 @@ body {
 
   private generateComponents(
     components: Component[],
-    folder: JSZip
+    folder: JSZip,
+    themeColors?: { primary: string; primaryHover: string }
   ): void {
     const componentSet = new Set<string>()
     this.collectUniqueComponents(components, componentSet)
 
     componentSet.forEach(name => {
       if (name !== 'Page' && name !== 'Container') {
-        folder.file(`${name}.vue`, this.generateComponentFile(name))
+        folder.file(`${name}.vue`, this.generateComponentFile(name, themeColors))
       }
     })
   }
@@ -418,7 +419,8 @@ body {
     })
   }
 
-  private generateComponentFile(componentName: string): string {
+  private generateComponentFile(componentName: string, themeColors?: { primary: string; primaryHover: string }): string {
+    const primary = themeColors?.primary || '#1677ff'
     switch (componentName) {
       case 'Button':
         return `<template>
@@ -449,9 +451,9 @@ const buttonStyle = computed((): CSSProperties => ({
   border: '1px solid transparent',
   cursor: 'pointer',
   transition: 'all 0.2s',
-  backgroundColor: props.type === 'primary' ? '#1677ff' : 'white',
+  backgroundColor: props.type === 'primary' ? '${primary}' : 'white',
   color: props.type === 'primary' ? 'white' : 'rgba(0, 0, 0, 0.88)',
-  borderColor: props.type === 'primary' ? '#1677ff' : '#d9d9d9'
+  borderColor: props.type === 'primary' ? '${primary}' : '#d9d9d9'
 }))
 
 const handleClick = () => {

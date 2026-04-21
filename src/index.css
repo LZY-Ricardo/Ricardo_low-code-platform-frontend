@@ -11,6 +11,10 @@
     --text-secondary: 107 114 128;
     --color-primary: 59 130 246;
     --color-primary-hover: 37 99 235;
+    --color-success: 16 185 129;
+    --color-danger: 239 68 68;
+    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-track: #f1f5f9;
   }
 
   * {
@@ -30,24 +34,24 @@
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: var(--scrollbar-track);
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--color-primary);
   }
 }

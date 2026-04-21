@@ -48,7 +48,7 @@ export class ReactExporter extends BaseExporter {
     srcFolder.file('index.css', this.generateGlobalStyles())
 
     const componentsFolder = srcFolder.folder('components')!
-    this.generateComponents(components, componentsFolder, ext)
+    this.generateComponents(components, componentsFolder, ext, options.themeColors)
 
     const publicFolder = zip.folder('public')!
     publicFolder.file('vite.svg', '')
@@ -380,14 +380,15 @@ body {
   private generateComponents(
     components: Component[],
     folder: JSZip,
-    ext: string
+    ext: string,
+    themeColors?: { primary: string; primaryHover: string }
   ): void {
     const componentSet = new Set<string>()
     this.collectUniqueComponents(components, componentSet)
 
     componentSet.forEach(name => {
       if (name !== 'Page' && name !== 'Container') {
-        folder.file(`${name}.${ext}`, this.generateComponentFile(name, ext))
+        folder.file(`${name}.${ext}`, this.generateComponentFile(name, ext, themeColors))
       }
     })
   }
@@ -401,8 +402,9 @@ body {
     })
   }
 
-  private generateComponentFile(componentName: string, ext: string): string {
+  private generateComponentFile(componentName: string, ext: string, themeColors?: { primary: string; primaryHover: string }): string {
     const propsType = ext === 'tsx' ? ': React.HTMLAttributes<HTMLElement>' : ''
+    const primary = themeColors?.primary || '#1677ff'
 
     switch (componentName) {
       case 'Button':
@@ -423,9 +425,9 @@ export default function Button({ type = 'default', children, style, onClick }: B
     border: '1px solid transparent',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    backgroundColor: type === 'primary' ? '#1677ff' : 'white',
+    backgroundColor: type === 'primary' ? '${primary}' : 'white',
     color: type === 'primary' ? 'white' : 'rgba(0, 0, 0, 0.88)',
-    borderColor: type === 'primary' ? '#1677ff' : '#d9d9d9'
+    borderColor: type === 'primary' ? '${primary}' : '#d9d9d9'
   }
 
   return (
