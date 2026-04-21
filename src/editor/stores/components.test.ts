@@ -53,4 +53,47 @@ describe('components store copy selection', () => {
     const selected = state.components[0].children?.find((item) => item.id === state.curComponentId)
     expect(selected?.name).toBe('Container')
   })
+
+  it('replaceComponents pushes history for undo', () => {
+    const nextComponents: Component[] = [
+      {
+        id: 1,
+        name: 'Page',
+        props: {},
+        desc: '页面',
+        children: [
+          {
+            id: 2,
+            name: 'Title',
+            props: { text: 'AI 页面' },
+            desc: '标题',
+            parentId: 1,
+          },
+        ],
+      },
+    ]
+
+    useComponentsStore.getState().replaceComponents(nextComponents)
+    expect(useComponentsStore.getState().history.past).toHaveLength(1)
+
+    useComponentsStore.getState().undo()
+    expect(useComponentsStore.getState().components[0].children?.[0]?.name).toBe('Container')
+  })
+
+  it('resetComponents replaces history snapshot', () => {
+    const nextComponents: Component[] = [
+      {
+        id: 1,
+        name: 'Page',
+        props: {},
+        desc: '页面',
+      },
+    ]
+
+    useComponentsStore.getState().resetComponents(nextComponents)
+
+    const state = useComponentsStore.getState()
+    expect(state.history.past).toHaveLength(0)
+    expect(state.components[0].name).toBe('Page')
+  })
 })

@@ -2,55 +2,149 @@
  * HTTP 客户端配置
  */
 import axios, { AxiosError } from 'axios';
-import type { InternalAxiosRequestConfig } from 'axios';
+import type {
+  AxiosInstance,
+  AxiosRequestConfig,
+  InternalAxiosRequestConfig,
+} from 'axios';
 import type { ApiError } from '../types/api';
 import { showError, showWarning } from '../utils/antdApp';
 
-// 创建 axios 实例
-export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+function createClient(baseURL: string, timeout = 10000): AxiosInstance {
+  return axios.create({
+    baseURL,
+    timeout,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+}
 
-// 请求拦截器：自动添加 token
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('lowcode_token');
-    if (token && config.headers) {
+// 现有模块沿用 /api，新扩展模块统一使用 /api/v1
+export const apiClient = createClient(
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+);
+
+export const apiV1Client = createClient(
+  import.meta.env.VITE_API_V1_BASE_URL || 'http://localhost:3000/api/v1'
+);
+
+export const aiClient = createClient(
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  Number(import.meta.env.VITE_AI_TIMEOUT_MS || '90000'),
+);
+
+// --- Token 刷新队列机制 ---
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+  config: AxiosRequestConfig;
+  client: AxiosInstance;
+}> = [];
+
+function processQueue(error: unknown, token: string | null = null) {
+  failedQueue.forEach(({ resolve, reject, config, client }) => {
+    if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
+      resolve(client(config));
+    } else {
+      reject(error);
     }
-    return config;
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error);
-  }
-);
+  });
+  failedQueue = [];
+}
 
-// 响应拦截器：统一错误处理
-apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error: AxiosError<ApiError>) => {
-    // 处理 401 未授权
-    if (error.response?.status === 401) {
-      localStorage.removeItem('lowcode_token');
-      showWarning('登录已过期，请重新登录');
-      // 跳转到登录页
-      window.location.href = '/login';
+function attachInterceptors(client: AxiosInstance) {
+  client.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = localStorage.getItem('lowcode_token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error: AxiosError) => Promise.reject(error),
+  );
+
+  client.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError<ApiError>) => {
+      const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+      // 处理 401 未授权
+      if (error.response?.status === 401) {
+        // 刷新请求本身失败，不再重试
+        if (originalRequest.url?.includes('/auth/refresh')) {
+          localStorage.removeItem('lowcode_token');
+          showWarning('登录已过期，请重新登录');
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+
+        // 已经重试过，不再循环
+        if (originalRequest._retry) {
+          localStorage.removeItem('lowcode_token');
+          showWarning('登录已过期，请重新登录');
+          window.location.href = '/login';
+          return Promise.reject(error);
+        }
+
+        // 如果正在刷新，将请求加入队列等待
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject, config: originalRequest, client });
+          });
+        }
+
+        // 开始刷新
+        isRefreshing = true;
+        originalRequest._retry = true;
+
+        try {
+          const authApi = await import('./auth');
+          const data = await authApi.refreshToken();
+          const newToken = data.accessToken;
+
+          // 更新存储
+          localStorage.setItem('lowcode_token', newToken);
+
+          // 更新 auth store
+          const { useAuthStore } = await import('../stores/auth');
+          useAuthStore.getState().updateToken(newToken);
+
+          // 重试队列中所有等待的请求
+          processQueue(null, newToken);
+
+          // 重试原始请求
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return client(originalRequest);
+        } catch (refreshError) {
+          // 刷新失败，清空队列并跳转登录页
+          processQueue(refreshError, null);
+          localStorage.removeItem('lowcode_token');
+          showWarning('登录已过期，请重新登录');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
+      // 处理其他错误
+      const errorMessage = getErrorMessage(error);
+      showError(errorMessage);
+
       return Promise.reject(error);
-    }
+    },
+  );
+}
 
-    // 处理其他错误
-    const errorMessage = getErrorMessage(error);
-    showError(errorMessage);
-
-    return Promise.reject(error);
-  }
-);
+attachInterceptors(apiClient);
+attachInterceptors(apiV1Client);
+attachInterceptors(aiClient);
 
 /**
  * 获取错误信息
@@ -58,7 +152,7 @@ apiClient.interceptors.response.use(
 function getErrorMessage(error: AxiosError<ApiError>): string {
   if (error.response) {
     const { status, data } = error.response;
-    
+
     // 后端返回的错误信息
     if (data?.message) {
       return data.message;

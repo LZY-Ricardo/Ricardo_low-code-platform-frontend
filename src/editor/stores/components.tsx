@@ -54,6 +54,8 @@ export interface Action {
   resetCanvasScale: () => void
   setCanvasScale: (scale: number) => void
   setMode: (mode: 'edit' | 'preview') => void
+  replaceComponents: (components: Component[]) => void
+  resetComponents: (components: Component[]) => void
   setComponents: (components: Component[]) => void
 }
 
@@ -198,7 +200,11 @@ export const useComponentsStore = create<State & Action>((set, get) => ({
     })
   },
 
-  setComponents: (components) => {
+  replaceComponents: (components) => {
+    syncComponents(set, get, components, null)
+  },
+
+  resetComponents: (components) => {
     const nextHistory = applyHistorySnapshot(get().history, components)
     set({
       components,
@@ -206,6 +212,10 @@ export const useComponentsStore = create<State & Action>((set, get) => ({
       curComponentId: null,
       curComponent: null,
     })
+  },
+
+  setComponents: (components) => {
+    get().resetComponents(components)
   },
 }))
 
