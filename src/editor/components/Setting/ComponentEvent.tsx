@@ -17,7 +17,10 @@ import { useState, useEffect } from 'react'
 import { Form, Select, Input, InputNumber, Button, Card, Typography } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { useComponentsStore } from '../../stores/components'
-import type { ComponentEvent, EventType, ActionType } from '../../types/event'
+import { useDataSourceStore } from '../../stores/data-source'
+import { useProjectStore } from '../../stores/project'
+import type { ComponentEvent, EventType, ActionType, WorkflowAction } from '../../types/event'
+import { useActionRegistryStore } from '../../stores/action-registry'
 
 const { Text } = Typography
 
@@ -41,28 +44,79 @@ const AVAILABLE_EVENTS: { [componentName: string]: EventType[] } = {
  * 动作类型选项
  * 定义用户可以选择的动作类型
  */
-const ACTION_TYPES: { label: string; value: ActionType }[] = [
-    { label: '显示消息', value: 'showMessage' },
-    { label: '页面跳转', value: 'navigate' },
-    { label: '更新组件状态', value: 'setState' },
-    { label: '调用 API', value: 'callAPI' },
-    { label: '自定义脚本', value: 'customScript' },
-]
+function renderRegistryField(
+    eventType: EventType,
+    field: { name: string; label: string; type: 'input' | 'textarea' | 'number' | 'select'; options?: Array<{ label: string; value: string | number | boolean }> },
+    actionConfig: Record<string, unknown>,
+    handleEventChange: (eventType: EventType, field: string, value: unknown) => void,
+) {
+    const fieldName = `${eventType}_${field.name}`
 
-/**
- * 消息类型选项
- * 用于 showMessage 动作的消息类型选择
- */
-const MESSAGE_TYPES = [
-    { label: '成功', value: 'success' },
-    { label: '错误', value: 'error' },
-    { label: '警告', value: 'warning' },
-    { label: '信息', value: 'info' },
-]
+    if (field.type === 'select') {
+        return (
+            <Form.Item key={fieldName} label={field.label} name={fieldName}>
+                <Select
+                    value={actionConfig[field.name] as string | number | boolean | undefined}
+                    onChange={(value) => handleEventChange(eventType, field.name, value)}
+                    options={field.options}
+                />
+            </Form.Item>
+        )
+    }
+
+    if (field.type === 'number') {
+        return (
+            <Form.Item key={fieldName} label={field.label} name={fieldName}>
+                <InputNumber
+                    value={actionConfig[field.name] as number | undefined}
+                    onChange={(value) => handleEventChange(eventType, field.name, value)}
+                />
+            </Form.Item>
+        )
+    }
+
+    if (field.type === 'textarea') {
+        const value = field.name === 'props'
+            ? JSON.stringify(actionConfig.props || {}, null, 2)
+            : String(actionConfig[field.name] ?? '')
+
+        return (
+            <Form.Item key={fieldName} label={field.label} name={fieldName}>
+                <Input.TextArea
+                    value={value}
+                    onChange={(e) => {
+                        if (field.name === 'props') {
+                            try {
+                                handleEventChange(eventType, field.name, JSON.parse(e.target.value))
+                            } catch {
+                                // 忽略 JSON 解析错误
+                            }
+                            return
+                        }
+                        handleEventChange(eventType, field.name, e.target.value)
+                    }}
+                    rows={field.name === 'script' ? 6 : 4}
+                />
+            </Form.Item>
+        )
+    }
+
+    return (
+        <Form.Item key={fieldName} label={field.label} name={fieldName}>
+            <Input
+                value={actionConfig[field.name] as string | undefined}
+                onChange={(e) => handleEventChange(eventType, field.name, e.target.value)}
+            />
+        </Form.Item>
+    )
+}
 
 export default function ComponentEvent() {
     const [form] = Form.useForm()
     const { curComponentId, curComponent, updateComponentEvents } = useComponentsStore()
+    const { dataSources } = useDataSourceStore()
+    const { pages } = useProjectStore()
+    const { actions, getAction } = useActionRegistryStore()
     /** 当前组件已配置的事件 */
     const [selectedEvents, setSelectedEvents] = useState<Record<string, ComponentEvent>>({})
 
@@ -193,15 +247,8 @@ export default function ComponentEvent() {
 
         if (field === 'actionType') {
             // 切换动作类型时，重置为对应动作类型的默认配置
-            const defaultConfigs: Record<ActionType, Record<string, unknown>> = {
-                showMessage: { type: 'success', content: '操作成功', duration: 3 },
-                navigate: { url: '', openInNewTab: false },
-                setState: { componentId: '', props: {} },
-                callAPI: { url: '', method: 'GET', params: {} },
-                customScript: { script: '' },
-            }
             event.actionType = value as ActionType
-            event.actionConfig = defaultConfigs[value as ActionType]
+            event.actionConfig = getAction(value as ActionType)?.defaultConfig ?? {}
         } else {
             // 更新动作配置中的某个字段
             event.actionConfig[field] = value
@@ -226,39 +273,38 @@ export default function ComponentEvent() {
     const renderActionConfig = (eventType: EventType, event: ComponentEvent) => {
         const { actionType, actionConfig } = event
 
+        const actionDefinition = actions.find((item) => item.value === actionType)
+
         // 根据动作类型渲染不同的配置表单
         switch (actionType) {
             case 'showMessage':
-                return (
-                    <>
-                        <Form.Item label="消息类型" name={`${eventType}_type`}>
-                            <Select
-                                value={actionConfig.type as string}
-                                onChange={(value) => handleEventChange(eventType, 'type', value)}
-                                options={MESSAGE_TYPES}
-                            />
-                        </Form.Item>
-                        <Form.Item label="消息内容" name={`${eventType}_content`}>
-                            <Input
-                                value={actionConfig.content as string}
-                                onChange={(e) => handleEventChange(eventType, 'content', e.target.value)}
-                                placeholder="请输入消息内容"
-                            />
-                        </Form.Item>
-                        <Form.Item label="显示时长(秒)" name={`${eventType}_duration`}>
-                            <InputNumber
-                                value={actionConfig.duration as number}
-                                onChange={(value) => handleEventChange(eventType, 'duration', value)}
-                                min={1}
-                                max={10}
-                            />
-                        </Form.Item>
-                    </>
-                )
+                return actionDefinition?.fields.map((field) => renderRegistryField(eventType, field, actionConfig, handleEventChange))
 
             case 'navigate':
                 return (
                     <>
+                        <Form.Item label="跳转类型" name={`${eventType}_targetType`}>
+                            <Select
+                                value={(actionConfig.targetType as string) || 'url'}
+                                onChange={(value) => handleEventChange(eventType, 'targetType', value)}
+                                options={[
+                                    { label: '项目页面', value: 'page' },
+                                    { label: '外部地址', value: 'url' },
+                                ]}
+                            />
+                        </Form.Item>
+                        {actionConfig.targetType === 'page' ? (
+                            <Form.Item label="目标页面" name={`${eventType}_pageId`}>
+                                <Select
+                                    value={actionConfig.pageId as string}
+                                    onChange={(value) => handleEventChange(eventType, 'pageId', value)}
+                                    options={pages.map((page) => ({
+                                        label: page.name,
+                                        value: page.id,
+                                    }))}
+                                />
+                            </Form.Item>
+                        ) : (
                         <Form.Item label="跳转地址" name={`${eventType}_url`}>
                             <Input
                                 value={actionConfig.url as string}
@@ -266,6 +312,7 @@ export default function ComponentEvent() {
                                 placeholder="请输入 URL，如：/page/123"
                             />
                         </Form.Item>
+                        )}
                         <Form.Item label="新标签页打开" name={`${eventType}_openInNewTab`}>
                             <Select
                                 value={actionConfig.openInNewTab ? 'true' : 'false'}
@@ -276,40 +323,48 @@ export default function ComponentEvent() {
                                 ]}
                             />
                         </Form.Item>
-                    </>
-                )
-
-            case 'setState':
-                return (
-                    <>
-                        <Form.Item label="目标组件ID" name={`${eventType}_componentId`}>
-                            <InputNumber
-                                value={actionConfig.componentId as number}
-                                onChange={(value) => handleEventChange(eventType, 'componentId', value)}
-                                placeholder="请输入组件ID"
-                            />
-                        </Form.Item>
-                        <Form.Item label="属性配置(JSON)" name={`${eventType}_props`}>
+                        <Form.Item label="串联动作(JSON)" name={`${eventType}_actions`}>
                             <Input.TextArea
-                                value={JSON.stringify(actionConfig.props || {}, null, 2)}
+                                value={JSON.stringify(actionConfig.actions || [], null, 2)}
                                 onChange={(e) => {
                                     try {
-                                        const props = JSON.parse(e.target.value)
-                                        handleEventChange(eventType, 'props', props)
+                                        const actions = JSON.parse(e.target.value) as WorkflowAction[]
+                                        handleEventChange(eventType, 'actions', actions)
                                     } catch {
                                         // 忽略 JSON 解析错误
                                     }
                                 }}
-                                placeholder='{"text": "新文本", "type": "primary"}'
-                                rows={4}
+                                placeholder='[{"actionType":"showMessage","actionConfig":{"type":"success","content":"完成"}}]'
+                                rows={6}
                             />
                         </Form.Item>
                     </>
                 )
 
+            case 'setState':
+                return actionDefinition?.fields.map((field) => renderRegistryField(eventType, field, actionConfig, handleEventChange))
+
             case 'callAPI':
                 return (
                     <>
+                        <Form.Item label="数据源" name={`${eventType}_dataSourceId`}>
+                            <Select
+                                allowClear
+                                value={actionConfig.dataSourceId as string}
+                                onChange={(value) => handleEventChange(eventType, 'dataSourceId', value)}
+                                options={dataSources.map((item) => ({
+                                    label: `${item.name} (${item.resultKey})`,
+                                    value: item.id,
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item label="结果键(可选)" name={`${eventType}_resultKey`}>
+                            <Input
+                                value={actionConfig.resultKey as string}
+                                onChange={(e) => handleEventChange(eventType, 'resultKey', e.target.value)}
+                                placeholder="覆盖默认结果键"
+                            />
+                        </Form.Item>
                         <Form.Item label="API 地址" name={`${eventType}_url`}>
                             <Input
                                 value={actionConfig.url as string}
@@ -329,20 +384,26 @@ export default function ComponentEvent() {
                                 ]}
                             />
                         </Form.Item>
+                        <Form.Item label="串联动作(JSON)" name={`${eventType}_actions`}>
+                            <Input.TextArea
+                                value={JSON.stringify(actionConfig.actions || [], null, 2)}
+                                onChange={(e) => {
+                                    try {
+                                        const actions = JSON.parse(e.target.value) as WorkflowAction[]
+                                        handleEventChange(eventType, 'actions', actions)
+                                    } catch {
+                                        // 忽略 JSON 解析错误
+                                    }
+                                }}
+                                placeholder='[{"actionType":"navigate","actionConfig":{"targetType":"page","pageId":"page_x"}}]'
+                                rows={6}
+                            />
+                        </Form.Item>
                     </>
                 )
 
             case 'customScript':
-                return (
-                    <Form.Item label="自定义脚本" name={`${eventType}_script`}>
-                        <Input.TextArea
-                            value={actionConfig.script as string}
-                            onChange={(e) => handleEventChange(eventType, 'script', e.target.value)}
-                            placeholder="console.log('Hello World');"
-                            rows={6}
-                        />
-                    </Form.Item>
-                )
+                return actionDefinition?.fields.map((field) => renderRegistryField(eventType, field, actionConfig, handleEventChange))
 
             default:
                 return null
@@ -395,7 +456,7 @@ export default function ComponentEvent() {
                                     <Select
                                         value={event.actionType}
                                         onChange={(value) => handleEventChange(eventType, 'actionType', value)}
-                                        options={ACTION_TYPES}
+                                        options={actions.map((item) => ({ label: item.label, value: item.value }))}
                                     />
                                 </Form.Item>
 

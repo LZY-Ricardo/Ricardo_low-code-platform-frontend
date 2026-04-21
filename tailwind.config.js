@@ -7,13 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        'bg-primary': '#f8f9fa',
-        'bg-secondary': '#ffffff',
-        'border-light': '#e5e7eb',
-        'text-primary': '#1f2937',
-        'text-secondary': '#6b7280',
-        'accent': '#3b82f6',
-        'accent-hover': '#2563eb',
+        'bg-primary': 'rgb(var(--bg-primary) / <alpha-value>)',
+        'bg-secondary': 'rgb(var(--bg-secondary) / <alpha-value>)',
+        'border-light': 'rgb(var(--border-light) / <alpha-value>)',
+        'text-primary': 'rgb(var(--text-primary) / <alpha-value>)',
+        'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
+        'accent': 'rgb(var(--color-primary) / <alpha-value>)',
+        'accent-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
       },
       boxShadow: {
         'soft': '0 2px 8px rgba(0, 0, 0, 0.04)',
@@ -24,4 +24,3 @@ export default {
   },
   plugins: [],
 }
-

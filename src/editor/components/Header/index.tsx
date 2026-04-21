@@ -1,28 +1,66 @@
-import { Space, Button, Dropdown, Modal, Input, message } from 'antd'
-import { SaveOutlined, FolderOpenOutlined, PlusOutlined, EditOutlined, DeleteOutlined, LeftOutlined, ExportOutlined } from '@ant-design/icons'
+import { Space, Button, Dropdown, Modal, Input, Tooltip, message } from 'antd'
+import {
+  SaveOutlined,
+  FolderOpenOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  LeftOutlined,
+  ExportOutlined,
+  UndoOutlined,
+  RedoOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined,
+  AppstoreAddOutlined,
+  CopyOutlined,
+  FileTextOutlined,
+  MoreOutlined,
+} from '@ant-design/icons'
 import { useComponentsStore } from '../../stores/components'
 import { useProjectStore } from '../../stores/project'
+import { useDataSourceStore } from '../../stores/data-source'
+import { useRuntimeStateStore } from '../../stores/runtime-state'
+import { useSharedStylesStore } from '../../stores/shared-styles'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { MenuProps } from 'antd'
 import ExportModal from '../ExportModal'
+import { formatSaveStatusText } from '../../utils/save-status'
+import { getNextCanvasScaleLabel } from '../../utils/canvas-scale'
+import { saveTemplate } from '../../utils/template-storage'
+import { useThemeStore } from '../../../stores/theme'
 
 export default function Header() {
   const navigate = useNavigate()
-  const { mode, setMode, components } = useComponentsStore()
+  const { mode, setMode, components, history, undo, redo, canvasScale, zoomIn, zoomOut, resetCanvasScale } = useComponentsStore()
+  const { dataSources } = useDataSourceStore()
+  const { variables } = useRuntimeStateStore()
+  const { sharedStyles } = useSharedStylesStore()
+  const { currentThemeId } = useThemeStore()
   const { 
+    activePageId,
+    addPage,
     currentProject, 
+    duplicateActivePage,
+    pages,
     projects, 
+    renamePage,
+    saveStatus,
     saveCurrentProject, 
     createProject,
     renameProject,
-    deleteProject
+    deleteProject,
+    lastSavedAt,
+    switchPage,
   } = useProjectStore()
   
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null)
   const [exportModalVisible, setExportModalVisible] = useState(false)
+  const [renamePageModalVisible, setRenamePageModalVisible] = useState(false)
+  const [renamePageName, setRenamePageName] = useState('')
+  const activePageName = pages.find((item) => item.id === activePageId)?.name ?? '页面'
 
   const handleSave = async () => {
     const success = await saveCurrentProject(components)
@@ -31,6 +69,67 @@ export default function Header() {
     } else {
       message.error('项目保存失败')
     }
+  }
+
+  const handleSaveTemplate = () => {
+    if (!currentProject) {
+      message.warning('当前没有可保存的项目')
+      return
+    }
+
+    saveTemplate({
+      id: `tpl_${Date.now()}`,
+      name: `${currentProject.name} 模板`,
+      description: '从当前项目生成',
+      components,
+      pages,
+      dataSources,
+      variables,
+      sharedStyles,
+      themeId: currentThemeId,
+      builtIn: false,
+    })
+    message.success('已保存为模板')
+  }
+
+  const handleAddPage = () => {
+    const page = addPage()
+    useComponentsStore.getState().setCurComponentId(null)
+    useComponentsStore.getState().setComponents(page.components)
+    message.success(`已新增${page.name}`)
+  }
+
+  const handleDuplicatePage = () => {
+    const page = duplicateActivePage(components)
+    if (page) {
+      message.success(`已复制为${page.name}`)
+    }
+  }
+
+  const handleSwitchPage = (pageId: string) => {
+    const nextComponents = switchPage(pageId, components)
+    if (nextComponents) {
+      useComponentsStore.getState().setComponents(nextComponents)
+    }
+  }
+
+  const handleOpenRenamePage = () => {
+    const page = pages.find((item) => item.id === activePageId)
+    if (!page) {
+      return
+    }
+    setRenamePageName(page.name)
+    setRenamePageModalVisible(true)
+  }
+
+  const handleRenamePage = () => {
+    if (!activePageId || !renamePageName.trim()) {
+      message.warning('请输入页面名称')
+      return
+    }
+    renamePage(activePageId, renamePageName.trim())
+    setRenamePageModalVisible(false)
+    message.success('页面已重命名')
   }
 
   const handleBackToProjects = async () => {
@@ -141,33 +240,148 @@ export default function Header() {
     )
   }))
 
+  const pageMenuItems: MenuProps['items'] = pages.map((page) => ({
+    key: page.id,
+    label: (
+      <span onClick={() => handleSwitchPage(page.id)}>
+        {page.name}
+        {activePageId === page.id && ' (当前)'}
+      </span>
+    ),
+  }))
+
+  const moreMenuItems: MenuProps['items'] = [
+    {
+      key: 'projects',
+      label: `项目列表 (${projects.length})`,
+      icon: <FolderOpenOutlined />,
+      onClick: () => void 0,
+      children: projectMenuItems,
+    },
+    {
+      key: 'export',
+      label: '导出',
+      icon: <ExportOutlined />,
+      onClick: () => setExportModalVisible(true),
+    },
+    {
+      key: 'save-template',
+      label: '保存为模板',
+      icon: <AppstoreAddOutlined />,
+      onClick: handleSaveTemplate,
+    },
+    {
+      key: 'add-page',
+      label: '新增页面',
+      icon: <PlusOutlined />,
+      onClick: handleAddPage,
+    },
+    {
+      key: 'duplicate-page',
+      label: '复制页面',
+      icon: <CopyOutlined />,
+      disabled: !activePageId,
+      onClick: handleDuplicatePage,
+    },
+    {
+      key: 'rename-page',
+      label: '重命名页面',
+      icon: <EditOutlined />,
+      disabled: !activePageId,
+      onClick: handleOpenRenamePage,
+    },
+  ]
+
   return (
     <div className='w-[100%] h-[100%]'>
-      <div className='h-[64px] flex justify-between items-center px-6'>
-        <div className='flex items-center gap-3'>
-          <div className='w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center shadow-soft'>
+      <div className='flex h-[64px] items-center gap-4 overflow-hidden px-6'>
+        <div className='flex min-w-0 flex-1 items-center gap-3 overflow-hidden'>
+          <div className='flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-hover shadow-soft'>
             <span className='text-white text-sm font-bold'>低</span>
           </div>
-          <div className='flex items-center gap-2'>
-            <Button 
-              type="text" 
-              icon={<LeftOutlined />}
-              onClick={handleBackToProjects}
-              className='text-gray-600 hover:text-accent'
-            >
-              我的项目
-            </Button>
+          <div className='flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap'>
+            <Tooltip title="返回项目列表">
+              <Button 
+                type="text" 
+                icon={<LeftOutlined />}
+                onClick={handleBackToProjects}
+                className='flex-shrink-0 text-gray-600 hover:text-accent'
+                aria-label='返回项目列表'
+              />
+            </Tooltip>
             {currentProject && (
               <>
-                <span className='text-gray-400'>/</span>
-                <span className='text-base font-medium text-text-primary'>{currentProject.name}</span>
+                <span className='flex-shrink-0 text-gray-400'>/</span>
+                <Tooltip title={currentProject.name}>
+                  <span className='inline-block min-w-[72px] max-w-[180px] truncate text-base font-medium text-text-primary'>
+                    {currentProject.name}
+                  </span>
+                </Tooltip>
+                {pages.length > 0 && (
+                  <>
+                    <span className='flex-shrink-0 text-gray-400'>/</span>
+                    <Tooltip title={activePageName}>
+                      <Dropdown menu={{ items: pageMenuItems }} trigger={['click']}>
+                        <Button
+                          type="text"
+                          icon={<FileTextOutlined />}
+                          className='flex min-w-[88px] max-w-[180px] items-center text-base font-medium text-text-primary'
+                        >
+                          <span className='min-w-0 flex-1 truncate text-left'>
+                            {activePageName}
+                          </span>
+                        </Button>
+                      </Dropdown>
+                    </Tooltip>
+                  </>
+                )}
               </>
             )}
           </div>
         </div>
-        <Space>
+        <div className='flex flex-shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'>
+          {currentProject && (
+            <div className='hidden min-w-[132px] flex-shrink-0 rounded-md border border-border-light bg-bg-primary px-3 py-1 text-xs text-text-secondary md:block'>
+              <div>{formatSaveStatusText(saveStatus)}</div>
+              <div className='text-[11px] text-text-muted'>
+                {lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--:--:--'}
+              </div>
+            </div>
+          )}
+          {mode === 'edit' && (
+            <div className='hidden flex-shrink-0 text-xs text-text-muted 2xl:block'>
+              快捷键：复制 `Ctrl/Cmd+C` 撤销 `Ctrl/Cmd+Z`
+            </div>
+          )}
           {mode === 'edit' && (
             <>
+              <Button
+                icon={<ZoomOutOutlined />}
+                onClick={zoomOut}
+                disabled={canvasScale <= 0.5}
+              />
+              <Button onClick={resetCanvasScale}>
+                {getNextCanvasScaleLabel(canvasScale)}
+              </Button>
+              <Button
+                icon={<ZoomInOutlined />}
+                onClick={zoomIn}
+                disabled={canvasScale >= 2}
+              />
+              <Button
+                icon={<UndoOutlined />}
+                onClick={undo}
+                disabled={history.past.length === 0}
+              >
+                撤销
+              </Button>
+              <Button
+                icon={<RedoOutlined />}
+                onClick={redo}
+                disabled={history.future.length === 0}
+              >
+                重做
+              </Button>
               <Button 
                 icon={<SaveOutlined />}
                 onClick={handleSave}
@@ -181,19 +395,13 @@ export default function Header() {
                 新建项目
               </Button>
               <Dropdown
-                menu={{ items: projectMenuItems }}
+                menu={{ items: moreMenuItems }}
                 trigger={['click']}
               >
-                <Button icon={<FolderOpenOutlined />}>
-                  项目列表 ({projects.length})
+                <Button icon={<MoreOutlined />}>
+                  更多
                 </Button>
               </Dropdown>
-              <Button
-                icon={<ExportOutlined />}
-                onClick={() => setExportModalVisible(true)}
-              >
-                导出
-              </Button>
               <Button
                 type="primary"
                 onClick={() => setMode('preview')}
@@ -212,8 +420,27 @@ export default function Header() {
               退出预览
             </Button>
           )}
-        </Space>
+        </div>
       </div>
+
+      <Modal
+        title="重命名页面"
+        open={renamePageModalVisible}
+        onOk={handleRenamePage}
+        onCancel={() => {
+          setRenamePageModalVisible(false)
+          setRenamePageName('')
+        }}
+        okText="确认"
+        cancelText="取消"
+      >
+        <Input
+          value={renamePageName}
+          onChange={(e) => setRenamePageName(e.target.value)}
+          placeholder="请输入新的页面名称"
+          onPressEnter={handleRenamePage}
+        />
+      </Modal>
 
       <Modal
         title="重命名项目"

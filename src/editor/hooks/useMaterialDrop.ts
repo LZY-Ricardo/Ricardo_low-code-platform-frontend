@@ -2,6 +2,7 @@ import { useDrop } from 'react-dnd'
 import { useComponentsStore } from '../stores/components'
 import { useComponentConfigStore } from '../stores/component-config'
 import { message } from 'antd'
+import { createComponentInstance } from '../utils/component-factory'
 
 // accept: string[] ：可接受的组件类型数组，如 ['Button', 'Container']
 // id: number ：当前组件的id，用于添加组件时指定父组件
@@ -19,19 +20,8 @@ export function useMaterialDrop(accept: string[], id: number) {
         const didDrop = monitor.didDrop()  // 是否被动冒泡接受其他组件 检查是否已被其他容器接收
         if (didDrop) return // 防止重复处理
         messageApi.success(item.type)
-        // console.log(item)
-        // 获取组件的默认配置
-        const props = componentConfig?.[item.type]?.defaultProps
-        const desc = componentConfig?.[item.type]?.desc
-        
-        // 创建新组件并添加到指定容器
-        addComponent({
-          id: new Date().getTime(), // 生成唯一 ID
-          name: item.type, // 组件类型
-          props: props, // 组件默认属性
-          desc: desc, // 组件描述
-          styles: {}, // 初始样式为空
-        }, id) // 添加到指定容器
+        const component = createComponentInstance(componentConfig, item.type, Date.now())
+        addComponent(component, id) // 添加到指定容器
       },
       collect: (monitor) => { // 收集拖拽状态信息
         return {

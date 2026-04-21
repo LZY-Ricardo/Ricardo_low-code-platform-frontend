@@ -2,12 +2,18 @@ import React, { useState } from 'react'
 import { useComponentsStore } from '../../stores/components'
 import type { Component } from '../../stores/components'
 import { useComponentConfigStore } from '../../stores/component-config'
+import { useRuntimeStateStore } from '../../stores/runtime-state'
+import { useSharedStylesStore } from '../../stores/shared-styles'
 import HoverMask from '../HoverMask'
 import SelectedMask from '../SelectedMask'
+import { resolveBindingsMap } from '../../utils/binding'
 
 export default function EditArea() {
-    const { components, setCurComponentId, curComponentId } = useComponentsStore()
+    const { components, setCurComponentId, curComponentId, canvasScale } = useComponentsStore()
     const { componentConfig } = useComponentConfigStore()
+    const variables = useRuntimeStateStore((state) => state.variables)
+    const requestResults = useRuntimeStateStore((state) => state.requestResults)
+    const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
     const [hoverComponentId, setHoverComponentId] = useState<number>()
 
     function renderComponents(components: Component[]): React.ReactNode {
@@ -21,9 +27,15 @@ export default function EditArea() {
                 key: component.id,
                 id: component.id,
                 name: component.name,
-                styles: component.styles,
+                styles: {
+                    ...(sharedStyles.find((item) => item.id === component.sharedStyleId)?.styles ?? {}),
+                    ...component.styles,
+                },
                 ...config.defaultProps,
-                ...component.props
+                ...resolveBindingsMap(component.props, component.bindings, {
+                    variables,
+                    requestResults,
+                }),
             }
             if (config.allowChildren && (component.children?.length || 0) > 0) {
                 return React.createElement(
@@ -77,7 +89,14 @@ export default function EditArea() {
             onClick={handleClick}
         >
             <div className='min-h-full p-6'>
-                {components && renderComponents(components)}
+                <div className='flex min-h-full justify-center'>
+                    <div
+                        className='origin-top transition-transform duration-150'
+                        style={{ transform: `scale(${canvasScale})` }}
+                    >
+                        {components && renderComponents(components)}
+                    </div>
+                </div>
             </div>
             {hoverComponentId && hoverComponentId !== curComponentId && (
                 <HoverMask

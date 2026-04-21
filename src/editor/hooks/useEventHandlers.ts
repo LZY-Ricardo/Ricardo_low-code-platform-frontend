@@ -15,11 +15,13 @@
  */
 import { useCallback } from 'react'
 import { useComponentsStore, getComponentById } from '../stores/components'
+import { useRuntimeStateStore } from '../stores/runtime-state'
 import { eventExecutor } from '../utils/event-executor'
 import type { EventContext, EventType } from '../types/event'
 
 export function useEventHandlers(componentId: number) {
     const { components, updateComponentProps } = useComponentsStore()
+    const { requestResults, variables } = useRuntimeStateStore()
 
     /**
      * 创建事件处理器的工厂函数
@@ -52,6 +54,8 @@ export function useEventHandlers(componentId: number) {
                 eventType,                // 事件类型
                 eventData,                // 事件数据（如 onChange 的新值）
                 components,               // 所有组件数组
+                variables,
+                requestResults,
                 getComponentById: (id: number) => getComponentById(id, components),  // 获取组件的函数
                 updateComponentProps,     // 更新组件属性的函数
             }
@@ -59,7 +63,7 @@ export function useEventHandlers(componentId: number) {
             // 执行事件动作
             eventExecutor.executeAction(event, context)
         }
-    }, [componentId, components, updateComponentProps])
+    }, [componentId, components, requestResults, updateComponentProps, variables])
 
     // 返回所有支持的事件处理器
     return {

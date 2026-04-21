@@ -3,8 +3,8 @@
  */
 import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
-import { message } from 'antd';
 import type { ApiError } from '../types/api';
+import { showError, showWarning } from '../utils/antdApp';
 
 // 创建 axios 实例
 export const apiClient = axios.create({
@@ -38,7 +38,7 @@ apiClient.interceptors.response.use(
     // 处理 401 未授权
     if (error.response?.status === 401) {
       localStorage.removeItem('lowcode_token');
-      message.warning('登录已过期，请重新登录');
+      showWarning('登录已过期，请重新登录');
       // 跳转到登录页
       window.location.href = '/login';
       return Promise.reject(error);
@@ -46,7 +46,7 @@ apiClient.interceptors.response.use(
 
     // 处理其他错误
     const errorMessage = getErrorMessage(error);
-    message.error(errorMessage);
+    showError(errorMessage);
 
     return Promise.reject(error);
   }

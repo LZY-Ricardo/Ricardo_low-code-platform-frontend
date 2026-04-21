@@ -1,7 +1,7 @@
 /**
  * 登录页面
  */
-import { Form, Input, Button, Card, message } from 'antd';
+import { App as AntdApp, Form, Input, Button, Card } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
@@ -10,6 +10,7 @@ import type { LoginRequest } from '../types/api';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { message } = AntdApp.useApp();
   const { login, loading, isAuthenticated } = useAuthStore();
   const [form] = Form.useForm();
 

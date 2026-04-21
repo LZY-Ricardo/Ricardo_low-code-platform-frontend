@@ -2,6 +2,7 @@ import JSZip from 'jszip'
 import { BaseExporter } from './base-exporter'
 import { ExportFormat, type ExportOptions } from './types'
 import type { Component } from '@/editor/stores/components'
+import { buildJsActionSnippets } from '../action-runtime'
 
 export class ReactExporter extends BaseExporter {
   format = ExportFormat.REACT
@@ -21,7 +22,7 @@ export class ReactExporter extends BaseExporter {
     const zip = new JSZip()
     const ext = includeTypeScript ? 'tsx' : 'jsx'
 
-    zip.file('package.json', this.generatePackageJson(projectName, packageManager))
+    zip.file('package.json', this.generatePackageJson(projectName))
     zip.file('README.md', this.generateReadme(projectName, packageManager))
     zip.file('.gitignore', this.generateGitignore())
 
@@ -38,12 +39,12 @@ export class ReactExporter extends BaseExporter {
       zip.file('.prettierrc', this.generatePrettierConfig())
     }
 
-    zip.file('vite.config.ts', this.generateViteConfig(includeTypeScript))
+    zip.file('vite.config.ts', this.generateViteConfig())
     zip.file('index.html', this.generateIndexHtml(projectName))
 
     const srcFolder = zip.folder('src')!
     srcFolder.file(`main.${ext}`, this.generateMain(includeTypeScript))
-    srcFolder.file(`App.${ext}`, this.generateApp(components, includeTypeScript))
+    srcFolder.file(`App.${ext}`, this.generateApp(components))
     srcFolder.file('index.css', this.generateGlobalStyles())
 
     const componentsFolder = srcFolder.folder('components')!
@@ -55,7 +56,7 @@ export class ReactExporter extends BaseExporter {
     return await zip.generateAsync({ type: 'blob' })
   }
 
-  private generatePackageJson(projectName: string, packageManager: string): string {
+  private generatePackageJson(projectName: string): string {
     return JSON.stringify({
       name: projectName,
       private: true,
@@ -217,7 +218,7 @@ pnpm-debug.log*
     }, null, 2)
   }
 
-  private generateViteConfig(includeTypeScript: boolean): string {
+  private generateViteConfig(): string {
     return `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -258,7 +259,7 @@ ReactDOM.createRoot(document.getElementById('root')${includeTypeScript ? '!' : '
 `
   }
 
-  private generateApp(components: Component[], includeTypeScript: boolean): string {
+  private generateApp(components: Component[]): string {
     const componentSet = new Set<string>()
 
     this.collectUniqueComponents(components, componentSet)
@@ -322,11 +323,9 @@ export default App
 
       if (events && events.onClick) {
         const { actionType, actionConfig } = events.onClick
-        if (actionType === 'showMessage' && actionConfig?.content) {
-          attrs.push(`onClick={() => alert('${this.escapeJSX(actionConfig.content)}')}`)
-        } else if (actionType === 'goToUrl' && actionConfig?.url) {
-          const target = actionConfig.target || '_self'
-          attrs.push(`onClick={() => window.open('${this.escapeJSX(actionConfig.url)}', '${target}')}`)
+        const snippets = buildJsActionSnippets(actionType, actionConfig, (text) => this.escapeJSX(text))
+        if (snippets.length > 0) {
+          attrs.push(`onClick={() => { ${snippets.join('; ')} }}`)
         }
       }
 
@@ -336,9 +335,13 @@ export default App
         return `${indentStr}<${tag}${attrsStr}>
 ${this.renderComponentsToJSX(children, indent + 2)}
 ${indentStr}</${tag}>`
-      } else if (props?.text) {
-        return `${indentStr}<${tag}${attrsStr}>${this.escapeJSX(props.text)}</${tag}>`
-      } else if (this.isSelfClosing(name)) {
+      } else {
+        const text = typeof props?.text === 'string' ? props.text : null
+        if (text) {
+          return `${indentStr}<${tag}${attrsStr}>${this.escapeJSX(text)}</${tag}>`
+        }
+      }
+      if (this.isSelfClosing(name)) {
         return `${indentStr}<${tag}${attrsStr} />`
       } else {
         return `${indentStr}<${tag}${attrsStr}></${tag}>`

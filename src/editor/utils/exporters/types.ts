@@ -3,13 +3,15 @@ import type { Component } from '@/editor/stores/components'
 /**
  * 导出格式枚举
  */
-export enum ExportFormat {
-  JSON = 'json',
-  HTML = 'html',
-  REACT = 'react',
-  VUE = 'vue',
-  SNIPPET = 'snippet'
-}
+export const ExportFormat = {
+  JSON: 'json',
+  HTML: 'html',
+  REACT: 'react',
+  VUE: 'vue',
+  SNIPPET: 'snippet',
+} as const
+
+export type ExportFormat = typeof ExportFormat[keyof typeof ExportFormat]
 
 /**
  * 导出选项
@@ -35,6 +37,7 @@ export interface ExportOptions {
 
   // 代码片段选项 (Phase 3)
   snippetType?: 'jsx' | 'vue'
+  schemaData?: unknown
 }
 
 /**

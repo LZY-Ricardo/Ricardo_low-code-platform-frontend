@@ -4,11 +4,25 @@ import { StorageManager, type Project } from '../utils/storage'
 import * as projectsApi from '../../api/projects'
 import type { ProjectData } from '../../api/projects'
 import { message } from 'antd'
+import type { SaveStatus } from '../utils/save-status'
+import { shouldMarkDirty } from '../utils/save-status'
+import { createPage, duplicatePage, getActivePage, replaceActivePageComponents, type EditorPage } from '../utils/page-model'
+import { loadProjectMeta } from '../utils/project-meta'
+import { useDataSourceStore } from './data-source'
+import { useRuntimeStateStore } from './runtime-state'
+import { useSharedStylesStore } from './shared-styles'
+import { createPersistedSnapshot, deserializeProjectSnapshot, serializeProjectSnapshot, stripSnapshotMeta } from '../utils/project-snapshot'
+import { useThemeStore } from '../../stores/theme'
 
 interface ProjectState {
     currentProject: Project | null
     projects: Project[]
+    pages: EditorPage[]
+    activePageId: string | null
     loading: boolean
+    saveStatus: SaveStatus
+    lastSavedAt: number | null
+    lastPersistedSnapshot: string
 }
 
 interface ProjectActions {
@@ -19,6 +33,13 @@ interface ProjectActions {
     deleteProject: (projectId: string) => Promise<boolean>
     renameProject: (projectId: string, newName: string) => Promise<boolean>
     setCurrentProject: (project: Project | null) => void
+    markDirty: (snapshot: string) => void
+    initializePages: (project: Project | null) => void
+    syncActivePageComponents: (components: Component[]) => void
+    switchPage: (pageId: string, currentComponents: Component[]) => Component[] | null
+    addPage: () => EditorPage
+    duplicateActivePage: (currentComponents: Component[]) => EditorPage | null
+    renamePage: (pageId: string, name: string) => void
 }
 
 const DEFAULT_COMPONENTS: Component[] = [
@@ -50,10 +71,30 @@ function isAuthenticated(): boolean {
     return !!localStorage.getItem('lowcode_token')
 }
 
+function getStoredSnapshot(project: Project): string {
+    const embeddedSnapshot = deserializeProjectSnapshot(project.components)
+    if (embeddedSnapshot) {
+        return createPersistedSnapshot(embeddedSnapshot)
+    }
+
+    return JSON.stringify({
+        pages: [createPage('页面 1', project.components)],
+        dataSources: [],
+        variables: {},
+        sharedStyles: [],
+        themeId: 'ocean',
+    })
+}
+
 export const useProjectStore = create<ProjectState & ProjectActions>((set, get) => ({
     currentProject: null,
     projects: [],
+    pages: [],
+    activePageId: null,
     loading: false,
+    saveStatus: 'idle',
+    lastSavedAt: null,
+    lastPersistedSnapshot: '',
 
     /**
      * 加载项目列表（优先从云端加载）
@@ -80,7 +121,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                     const lastProject = lastProjectId 
                         ? cloudProjects.find(p => p.id === lastProjectId) 
                         : cloudProjects[0]
-                    set({ currentProject: lastProject || cloudProjects[0] })
+                    const activeProject = lastProject || cloudProjects[0]
+                    set({
+                        currentProject: activeProject,
+                        saveStatus: 'saved',
+                        lastSavedAt: activeProject.updatedAt,
+                        lastPersistedSnapshot: getStoredSnapshot(activeProject),
+                    })
                 } else {
                     // 如果没有项目，创建默认项目
                     const defaultProject = await get().createProject('默认项目', DEFAULT_COMPONENTS)
@@ -99,7 +146,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                     const lastProject = lastProjectId 
                         ? localProjects.find(p => p.id === lastProjectId) 
                         : localProjects[0]
-                    set({ currentProject: lastProject || localProjects[0] })
+                    const activeProject = lastProject || localProjects[0]
+                    set({
+                        currentProject: activeProject,
+                        saveStatus: 'saved',
+                        lastSavedAt: activeProject.updatedAt,
+                        lastPersistedSnapshot: getStoredSnapshot(activeProject),
+                    })
                 }
             }
         } catch (error) {
@@ -116,7 +169,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 const lastProject = lastProjectId 
                     ? localProjects.find(p => p.id === lastProjectId) 
                     : localProjects[0]
-                set({ currentProject: lastProject || localProjects[0] })
+                const activeProject = lastProject || localProjects[0]
+                set({
+                    currentProject: activeProject,
+                    saveStatus: 'saved',
+                    lastSavedAt: activeProject.updatedAt,
+                    lastPersistedSnapshot: getStoredSnapshot(activeProject),
+                })
             }
         }
     },
@@ -144,7 +203,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 const projects = [...get().projects, newProject]
                 set({ 
                     projects,
-                    currentProject: newProject
+                    currentProject: newProject,
+                    saveStatus: 'saved',
+                    lastSavedAt: newProject.updatedAt,
+                    lastPersistedSnapshot: getStoredSnapshot(newProject),
                 })
                 
                 return newProject
@@ -156,7 +218,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 const projects = StorageManager.getAllProjects()
                 set({ 
                     projects,
-                    currentProject: newProject
+                    currentProject: newProject,
+                    saveStatus: 'saved',
+                    lastSavedAt: newProject.updatedAt,
+                    lastPersistedSnapshot: getStoredSnapshot(newProject),
                 })
                 
                 return newProject
@@ -172,7 +237,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             const projects = StorageManager.getAllProjects()
             set({ 
                 projects,
-                currentProject: newProject
+                currentProject: newProject,
+                saveStatus: 'saved',
+                lastSavedAt: newProject.updatedAt,
+                lastPersistedSnapshot: getStoredSnapshot(newProject),
             })
             
             return newProject
@@ -189,17 +257,33 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             return false
         }
 
+        const { dataSources } = useDataSourceStore.getState()
+        const { variables } = useRuntimeStateStore.getState()
+        const { sharedStyles } = useSharedStylesStore.getState()
+        const { currentThemeId } = useThemeStore.getState()
+        const pages = replaceActivePageComponents(get().pages, get().activePageId, components)
+        const serializedComponents = serializeProjectSnapshot({
+            pages,
+            activePageId: get().activePageId,
+            dataSources,
+            variables,
+            sharedStyles,
+            themeId: currentThemeId,
+        })
+
         const updatedProject: Project = {
             ...currentProject,
-            components,
+            components: serializedComponents,
             updatedAt: Date.now()
         }
+
+        set({ saveStatus: 'saving' })
 
         try {
             // 如果已登录，保存到云端
             if (isAuthenticated()) {
                 await projectsApi.updateProject(currentProject.id, {
-                    components,
+                    components: serializedComponents,
                 })
                 
                 // 同步到 LocalStorage
@@ -211,7 +295,17 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 
                 set({ 
                     currentProject: updatedProject,
-                    projects 
+                    projects,
+                    saveStatus: 'saved',
+                    lastSavedAt: updatedProject.updatedAt,
+                    lastPersistedSnapshot: createPersistedSnapshot({
+                        pages,
+                        activePageId: get().activePageId,
+                        dataSources,
+                        variables,
+                        sharedStyles,
+                        themeId: currentThemeId,
+                    }),
                 })
                 
                 return true
@@ -223,8 +317,21 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                     const projects = StorageManager.getAllProjects()
                     set({ 
                         currentProject: updatedProject,
-                        projects 
+                        projects,
+                        saveStatus: 'saved',
+                        lastSavedAt: updatedProject.updatedAt,
+                        lastPersistedSnapshot: createPersistedSnapshot({
+                            pages,
+                            activePageId: get().activePageId,
+                            dataSources,
+                            variables,
+                            sharedStyles,
+                            themeId: currentThemeId,
+                        }),
                     })
+                }
+                else {
+                    set({ saveStatus: 'error' })
                 }
                 
                 return success
@@ -239,8 +346,21 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 const projects = StorageManager.getAllProjects()
                 set({ 
                     currentProject: updatedProject,
-                    projects 
+                    projects,
+                    saveStatus: 'saved',
+                    lastSavedAt: updatedProject.updatedAt,
+                    lastPersistedSnapshot: createPersistedSnapshot({
+                        pages,
+                        activePageId: get().activePageId,
+                        dataSources,
+                        variables,
+                        sharedStyles,
+                        themeId: currentThemeId,
+                    }),
                 })
+            }
+            else {
+                set({ saveStatus: 'error' })
             }
             
             return success
@@ -261,7 +381,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 StorageManager.saveProject(project)
                 StorageManager.setLastProjectId(projectId)
                 
-                set({ currentProject: project })
+                set({
+                    currentProject: project,
+                    saveStatus: 'saved',
+                    lastSavedAt: project.updatedAt,
+                    lastPersistedSnapshot: getStoredSnapshot(project),
+                })
                 return project
             } else {
                 // 未登录，从 LocalStorage 获取
@@ -273,7 +398,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                 }
 
                 StorageManager.setLastProjectId(projectId)
-                set({ currentProject: project })
+                set({
+                    currentProject: project,
+                    saveStatus: 'saved',
+                    lastSavedAt: project.updatedAt,
+                    lastPersistedSnapshot: getStoredSnapshot(project),
+                })
                 
                 return project
             }
@@ -289,7 +419,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             }
 
             StorageManager.setLastProjectId(projectId)
-            set({ currentProject: project })
+            set({
+                currentProject: project,
+                saveStatus: 'saved',
+                lastSavedAt: project.updatedAt,
+                lastPersistedSnapshot: getStoredSnapshot(project),
+            })
             
             return project
         }
@@ -461,6 +596,102 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
     },
 
     setCurrentProject: (project) => {
-        set({ currentProject: project })
-    }
+        set({
+            currentProject: project,
+            pages: [],
+            activePageId: null,
+            saveStatus: project ? 'saved' : 'idle',
+            lastSavedAt: project?.updatedAt ?? null,
+            lastPersistedSnapshot: project ? getStoredSnapshot(project) : '',
+        })
+    },
+
+    markDirty: (snapshot) => {
+        const { lastPersistedSnapshot, saveStatus } = get()
+        const isDirty = shouldMarkDirty(snapshot, lastPersistedSnapshot)
+
+        if (isDirty && saveStatus !== 'saving') {
+            set({ saveStatus: 'dirty' })
+            return
+        }
+
+        if (!isDirty && saveStatus !== 'saving') {
+            set({ saveStatus: 'saved' })
+        }
+    },
+
+    initializePages: (project) => {
+        if (!project) {
+            set({ pages: [], activePageId: null })
+            return
+        }
+
+        const embeddedSnapshot = deserializeProjectSnapshot(project.components)
+        const meta = embeddedSnapshot ?? loadProjectMeta(project.id)
+        const pages = meta.pages.length > 0
+            ? meta.pages
+            : [createPage('页面 1', stripSnapshotMeta(project.components))]
+        const activePage = getActivePage(pages, meta.activePageId)
+
+        set({
+            pages,
+            activePageId: activePage?.id ?? null,
+        })
+    },
+
+    syncActivePageComponents: (components) => {
+        set((state) => ({
+            pages: replaceActivePageComponents(state.pages, state.activePageId, components),
+        }))
+    },
+
+    switchPage: (pageId, currentComponents) => {
+        const { pages, activePageId } = get()
+        const syncedPages = replaceActivePageComponents(pages, activePageId, currentComponents)
+        const nextPage = getActivePage(syncedPages, pageId)
+        if (!nextPage) {
+            return null
+        }
+
+        set({
+            pages: syncedPages,
+            activePageId: nextPage.id,
+        })
+        return nextPage.components
+    },
+
+    addPage: () => {
+        const page = createPage(`页面 ${get().pages.length + 1}`, DEFAULT_COMPONENTS)
+        set((state) => ({
+            pages: [...state.pages, page],
+            activePageId: page.id,
+        }))
+        return page
+    },
+
+    duplicateActivePage: (currentComponents) => {
+        const { pages, activePageId } = get()
+        if (!activePageId) {
+            return null
+        }
+
+        const syncedPages = replaceActivePageComponents(pages, activePageId, currentComponents)
+        const nextPages = duplicatePage(syncedPages, activePageId)
+        const duplicated = nextPages[nextPages.length - 1] ?? null
+        set({
+            pages: nextPages,
+            activePageId: duplicated?.id ?? activePageId,
+        })
+        return duplicated
+    },
+
+    renamePage: (pageId, name) => {
+        set((state) => ({
+            pages: state.pages.map((page) => (
+                page.id === pageId
+                    ? { ...page, name }
+                    : page
+            )),
+        }))
+    },
 }))

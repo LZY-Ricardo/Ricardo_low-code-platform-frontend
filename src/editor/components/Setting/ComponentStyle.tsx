@@ -7,6 +7,7 @@ import { useComponentsStore } from '../../stores/components';
 import CssEditor from './CssEditor';
 import { debounce } from 'lodash-es';
 import styleToObject from 'style-to-object';
+import SharedStylePanel from './SharedStylePanel';
 
 export default function ComponentStyle() {
 
@@ -84,22 +85,25 @@ export default function ComponentStyle() {
     }, 500);
 
     return (
-        <Form
-            form={form}
-            onValuesChange={valueChange}
-            labelCol={{ span: 8 }}
-            wrapperCol={{ span: 14 }}
-        >
-            {
-                componentConfig[curComponent.name]?.stylesSetter?.map(setter => (
-                    <Form.Item key={setter.name} name={setter.name} label={setter.label}>
-                        {renderFormElememt(setter)}
-                    </Form.Item>
-                ))
-            }
-            <div className='h-[200px] border border-border-light rounded-lg relative overflow-hidden shadow-soft'>
-                <CssEditor value={css} onChange={handleEditorChange} />
-            </div>
-        </Form>
+        <div className='space-y-4'>
+            <Form
+                form={form}
+                onValuesChange={valueChange}
+                labelCol={{ span: 8 }}
+                wrapperCol={{ span: 14 }}
+            >
+                {
+                    componentConfig[curComponent.name]?.stylesSetter?.map(setter => (
+                        <Form.Item key={setter.name} name={setter.name} label={setter.label}>
+                            {renderFormElememt(setter)}
+                        </Form.Item>
+                    ))
+                }
+                <div className='h-[200px] border border-border-light rounded-lg relative overflow-hidden shadow-soft'>
+                    <CssEditor value={css} onChange={handleEditorChange} />
+                </div>
+            </Form>
+            <SharedStylePanel />
+        </div>
     )
 }

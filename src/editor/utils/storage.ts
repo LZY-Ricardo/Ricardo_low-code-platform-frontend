@@ -133,14 +133,18 @@ export class StorageManager {
         return localStorage.getItem(LAST_PROJECT_KEY)
     }
 
-    private static validateProject(project: any): project is Project {
+    private static validateProject(project: unknown): project is Project {
+        if (typeof project !== 'object' || project === null) {
+            return false
+        }
+
+        const candidate = project as Partial<Project>
         return (
-            typeof project === 'object' &&
-            typeof project.id === 'string' &&
-            typeof project.name === 'string' &&
-            Array.isArray(project.components) &&
-            typeof project.createdAt === 'number' &&
-            typeof project.updatedAt === 'number'
+            typeof candidate.id === 'string' &&
+            typeof candidate.name === 'string' &&
+            Array.isArray(candidate.components) &&
+            typeof candidate.createdAt === 'number' &&
+            typeof candidate.updatedAt === 'number'
         )
     }
 

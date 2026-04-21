@@ -29,6 +29,8 @@ export default function ComponentAttr() {
             return <Select options={options} />
         } else if (type === 'input') {
             return <Input />
+        } else if (type === 'textarea') {
+            return <Input.TextArea rows={4} />
         } else if (type === 'inputNumber') {
             return <InputNumber />
         }

@@ -1,4 +1,5 @@
 import type { CommonComponentProps } from '../../interface'
+import type { LegacyRef } from 'react'
 // import { useDrop } from 'react-dnd'
 // import { useComponentsStore } from '../../stores/components'
 // import { useComponentConfigStore } from '../../stores/component-config'
@@ -30,7 +31,7 @@ export default function Container({ id, children, styles }: CommonComponentProps
     //   }
     // })
 
-    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card'], id)
+    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag', 'Row', 'Col'], id)
 
     return (
         <>
@@ -38,7 +39,7 @@ export default function Container({ id, children, styles }: CommonComponentProps
             <div
                 data-component-id={id}
                 // 绑定拖拽接收
-                ref={dropRef as any}
+                ref={dropRef as unknown as LegacyRef<HTMLDivElement>}
                 // 根据拖拽状态调整样式
                 className={`
           min-h-[100px] 

@@ -1,11 +1,12 @@
 import { useDrag } from 'react-dnd'
+import type { LegacyRef } from 'react'
 
 export interface MaterialItemProps {
   name: string
 }
 
 export default function MaterialItem(props: MaterialItemProps) {
-  const [_, dragRef] = useDrag(() => ({
+  const [, dragRef] = useDrag(() => ({
     type: props.name,
     item: {  // 被拖动的内容
       type: props.name
@@ -14,7 +15,7 @@ export default function MaterialItem(props: MaterialItemProps) {
   
   return (
     <div
-      ref={dragRef as any}
+      ref={dragRef as unknown as LegacyRef<HTMLDivElement>}
       className='
         border-dashed
         border-2

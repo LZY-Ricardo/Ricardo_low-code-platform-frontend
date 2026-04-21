@@ -15,6 +15,9 @@ import React from 'react'
 import { useComponentConfigStore } from '../../stores/component-config'
 import { useEventHandlers } from '../../hooks/useEventHandlers'
 import type { Component } from '../../stores/components'
+import { useRuntimeStateStore } from '../../stores/runtime-state'
+import { useSharedStylesStore } from '../../stores/shared-styles'
+import { resolveBindingsMap } from '../../utils/binding'
 
 interface ComponentWithEventsProps {
     /** 组件数据 */
@@ -26,6 +29,9 @@ interface ComponentWithEventsProps {
 export default function ComponentWithEvents({ component, renderChildren }: ComponentWithEventsProps) {
     const { componentConfig } = useComponentConfigStore()
     const config = componentConfig?.[component.name]
+    const variables = useRuntimeStateStore((state) => state.variables)
+    const requestResults = useRuntimeStateStore((state) => state.requestResults)
+    const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
 
     // 获取组件的事件处理器（所有支持的事件类型）
     const eventHandlers = useEventHandlers(component.id)
@@ -40,9 +46,15 @@ export default function ComponentWithEvents({ component, renderChildren }: Compo
         key: component.id,
         id: component.id,
         name: component.name,
-        styles: component.styles,
+        styles: {
+            ...(sharedStyles.find((item) => item.id === component.sharedStyleId)?.styles ?? {}),
+            ...component.styles,
+        },
         ...config.defaultProps,      // 默认属性
-        ...component.props,          // 组件自定义属性
+        ...resolveBindingsMap(component.props, component.bindings, {
+            variables,
+            requestResults,
+        }),          // 组件自定义属性
         // 绑定事件处理器，当事件触发时会执行配置的动作
         onClick: eventHandlers.onClick,
         onDoubleClick: eventHandlers.onDoubleClick,

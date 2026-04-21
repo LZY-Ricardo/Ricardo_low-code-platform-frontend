@@ -3,6 +3,16 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-primary: 248 249 250;
+    --bg-secondary: 255 255 255;
+    --border-light: 229 231 235;
+    --text-primary: 31 41 55;
+    --text-secondary: 107 114 128;
+    --color-primary: 59 130 246;
+    --color-primary-hover: 37 99 235;
+  }
+
   * {
     @apply border-border-light;
   }

@@ -1,6 +1,7 @@
 import { BaseExporter } from './base-exporter'
 import { ExportFormat, type ExportOptions } from './types'
 import type { Component } from '@/editor/stores/components'
+import { buildJsActionSnippets } from '../action-runtime'
 
 export class SnippetExporter extends BaseExporter {
   format = ExportFormat.SNIPPET
@@ -57,11 +58,9 @@ export class SnippetExporter extends BaseExporter {
 
       if (events && events.onClick) {
         const { actionType, actionConfig } = events.onClick
-        if (actionType === 'showMessage' && actionConfig?.content) {
-          attrs.push(`onClick={() => alert('${this.escapeJSX(actionConfig.content)}')}`)
-        } else if (actionType === 'goToUrl' && actionConfig?.url) {
-          const target = actionConfig.target || '_self'
-          attrs.push(`onClick={() => window.open('${this.escapeJSX(actionConfig.url)}', '${target}')}`)
+        const snippets = buildJsActionSnippets(actionType, actionConfig, (text) => this.escapeJSX(text))
+        if (snippets.length > 0) {
+          attrs.push(`onClick={() => { ${snippets.join('; ')} }}`)
         }
       }
 
@@ -71,9 +70,13 @@ export class SnippetExporter extends BaseExporter {
         return `${indentStr}<${tag}${attrsStr}>
 ${this.renderComponentsToJSX(children, indent + 1)}
 ${indentStr}</${tag}>`
-      } else if (props?.text) {
-        return `${indentStr}<${tag}${attrsStr}>${this.escapeJSX(props.text)}</${tag}>`
-      } else if (this.isSelfClosing(name)) {
+      } else {
+        const text = typeof props?.text === 'string' ? props.text : null
+        if (text) {
+          return `${indentStr}<${tag}${attrsStr}>${this.escapeJSX(text)}</${tag}>`
+        }
+      }
+      if (this.isSelfClosing(name)) {
         return `${indentStr}<${tag}${attrsStr} />`
       } else {
         return `${indentStr}<${tag}${attrsStr}></${tag}>`
@@ -101,7 +104,7 @@ ${indentStr}</${tag}>`
       const attrs: string[] = []
       
       if (styles && Object.keys(styles).length > 0) {
-        const styleStr = this.styleObjectToString(styles)
+        const styleStr = this.styleObjectToString(styles as Record<string, unknown>)
         attrs.push(`:style="{ ${styleStr} }"`)
       }
 
@@ -118,11 +121,9 @@ ${indentStr}</${tag}>`
 
       if (events && events.onClick) {
         const { actionType, actionConfig } = events.onClick
-        if (actionType === 'showMessage' && actionConfig?.content) {
-          attrs.push(`@click="() => alert('${this.escapeHTML(actionConfig.content)}')"`)
-        } else if (actionType === 'goToUrl' && actionConfig?.url) {
-          const target = actionConfig.target || '_self'
-          attrs.push(`@click="() => window.open('${this.escapeHTML(actionConfig.url)}', '${target}')"`)
+        const snippets = buildJsActionSnippets(actionType, actionConfig, (text) => this.escapeHTML(text))
+        if (snippets.length > 0) {
+          attrs.push(`@click="() => { ${snippets.join('; ')} }"`)
         }
       }
 
@@ -132,9 +133,13 @@ ${indentStr}</${tag}>`
         return `${indentStr}<${tag}${attrsStr}>
 ${this.renderComponentsToVue(children, indent + 1)}
 ${indentStr}</${tag}>`
-      } else if (props?.text) {
-        return `${indentStr}<${tag}${attrsStr}>${this.escapeHTML(props.text)}</${tag}>`
-      } else if (this.isSelfClosing(name)) {
+      } else {
+        const text = typeof props?.text === 'string' ? props.text : null
+        if (text) {
+          return `${indentStr}<${tag}${attrsStr}>${this.escapeHTML(text)}</${tag}>`
+        }
+      }
+      if (this.isSelfClosing(name)) {
         return `${indentStr}<${tag}${attrsStr} />`
       } else {
         return `${indentStr}<${tag}${attrsStr}></${tag}>`
@@ -146,7 +151,7 @@ ${indentStr}</${tag}>`
     return componentName === 'Input' || componentName === 'Image'
   }
 
-  private styleObjectToString(styles: any): string {
+  private styleObjectToString(styles: Record<string, unknown>): string {
     return Object.entries(styles)
       .map(([key, value]) => {
         const vueValue = typeof value === 'string' ? `'${value}'` : value

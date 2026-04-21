@@ -15,10 +15,14 @@ import { useProjectStore } from '../editor/stores/project';
 import { useAuthStore } from '../stores/auth';
 import type { Project } from '../editor/utils/storage';
 import MigrationModal from '../components/MigrationModal';
+import { getAllTemplates, normalizeTemplatePages, type ProjectTemplate } from '../editor/utils/template-storage';
+import { saveProjectMeta } from '../editor/utils/project-meta';
+import { THEME_PRESETS, useThemeStore } from '../stores/theme';
 
 export default function Projects() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { currentThemeId, setTheme } = useThemeStore();
   const {
     projects,
     loadProjects,
@@ -34,12 +38,14 @@ export default function Projects() {
   const [renameProjectId, setRenameProjectId] = useState<string | null>(null);
   const [renameProjectName, setRenameProjectName] = useState('');
   const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
 
   // 页面加载时加载项目列表
   useEffect(() => {
     loadProjects();
     // 显示迁移提示
     setShowMigrationModal(true);
+    setTemplates(getAllTemplates());
   }, [loadProjects]);
 
   // 创建新项目
@@ -66,6 +72,25 @@ export default function Projects() {
   const handleOpenProject = (project: Project) => {
     switchProject(project.id);
     navigate(`/editor/${project.id}`);
+  };
+
+  const handleCreateFromTemplate = async (template: ProjectTemplate) => {
+    try {
+      const project = await createProject(`${template.name}_${Date.now()}`, template.components);
+      const pages = normalizeTemplatePages(template);
+      saveProjectMeta(project.id, {
+        dataSources: template.dataSources,
+        variables: template.variables,
+        pages,
+        activePageId: pages[0]?.id ?? null,
+        sharedStyles: template.sharedStyles,
+        themeId: template.themeId,
+      });
+      message.success(`已从模板 "${template.name}" 创建项目`);
+      navigate(`/editor/${project.id}`);
+    } catch {
+      message.error('模板创建失败');
+    }
   };
 
   // 删除项目
@@ -140,6 +165,18 @@ export default function Projects() {
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold text-gray-900">低代码编辑器</h1>
             <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                {THEME_PRESETS.map((theme) => (
+                  <Button
+                    key={theme.id}
+                    size="small"
+                    type={currentThemeId === theme.id ? 'primary' : 'default'}
+                    onClick={() => setTheme(theme.id)}
+                  >
+                    {theme.name}
+                  </Button>
+                ))}
+              </div>
               <span className="text-gray-700">欢迎，{user?.username}</span>
               <Button
                 icon={<LogoutOutlined />}
@@ -165,6 +202,30 @@ export default function Projects() {
           >
             新建项目
           </Button>
+        </div>
+
+        <div className="mb-10">
+          <h3 className="mb-4 text-lg font-semibold text-gray-800">模板中心</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templates.map((template) => (
+              <Card key={template.id} hoverable>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-semibold text-gray-900">{template.name}</h4>
+                    {template.builtIn ? (
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-xs text-blue-600">内置</span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-600">自定义</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500">{template.description}</p>
+                  <Button type="primary" onClick={() => handleCreateFromTemplate(template)}>
+                    从模板创建
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
 
         {/* 项目列表 */}

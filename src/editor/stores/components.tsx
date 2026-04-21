@@ -1,220 +1,256 @@
 import { create } from 'zustand'
 import type { CSSProperties } from 'react'
 import type { ComponentEvent } from '../types/event'
+import {
+  addComponentToTree,
+  copyComponentWithMetadata,
+  createEmptyEditorTree,
+  deleteComponentFromTree,
+  getComponentById,
+  moveComponentInTree,
+  type EditorComponent,
+  updateComponentInTree,
+} from '../utils/component-tree'
+import {
+  applyHistorySnapshot,
+  createHistoryState,
+  pushHistory,
+  redoHistory,
+  undoHistory,
+  type ComponentHistoryState,
+} from '../utils/component-history'
+import { clampCanvasScale, stepCanvasScale } from '../utils/canvas-scale'
 
-export interface Component {
-    id: number,
-    name: string,
-    props: any,
-    styles?: CSSProperties,
-    events?: {
-        [eventType: string]: ComponentEvent
-    },
-    desc: string,
-    children?: Component[],
-    parentId?: number
+export interface Component extends EditorComponent {
+  events?: {
+    [eventType: string]: ComponentEvent
+  }
 }
+
 export interface State {
-    components: Component[],
-    curComponentId?: number | null,
-    curComponent: Component | null,
-    mode: 'edit' | 'preview',
+  components: Component[]
+  curComponentId?: number | null
+  curComponent: Component | null
+  mode: 'edit' | 'preview'
+  canvasScale: number
+  history: ComponentHistoryState
 }
+
 export interface Action {
-    addComponent: (component: any, parentId?: number) => void;
-    deleteComponent: (componentId: number) => void;
-    updateComponentProps: (componentId: number, props: any) => void;
-    setCurComponentId: (componentId: number | null) => void;
-    updateComponentStyles: (componentId: number, styles: CSSProperties) => void;
-    updateComponentEvents: (componentId: number, events: Record<string, ComponentEvent>) => void;
-    setMode: (mode: 'edit' | 'preview') => void;
-    setComponents: (components: Component[]) => void;
+  addComponent: (component: Component, parentId?: number) => void
+  deleteComponent: (componentId: number) => void
+  copyComponent: (componentId: number) => void
+  moveComponent: (componentId: number, targetParentId: number, targetIndex?: number) => void
+  updateComponentProps: (componentId: number, props: Record<string, unknown>) => void
+  updateComponentBindings: (componentId: number, bindings: Record<string, string>) => void
+  updateComponentSharedStyle: (componentId: number, sharedStyleId: string | undefined) => void
+  setCurComponentId: (componentId: number | null) => void
+  updateComponentStyles: (componentId: number, styles: CSSProperties) => void
+  updateComponentEvents: (componentId: number, events: Record<string, ComponentEvent>) => void
+  undo: () => void
+  redo: () => void
+  zoomIn: () => void
+  zoomOut: () => void
+  resetCanvasScale: () => void
+  setCanvasScale: (scale: number) => void
+  setMode: (mode: 'edit' | 'preview') => void
+  setComponents: (components: Component[]) => void
 }
 
-export const useComponentsStore = create<State & Action>(
-    (set, get) => ({
-        // 数据
-        components: [  // 整个项目的 json 树
-            {
-                id: 1,
-                name: 'Page',
-                props: {},
-                desc: '页面'
-            }
-        ],
-        curComponentId: null,
-        curComponent: null,
-        mode: 'edit',
-        // 方法
-        addComponent: (component, parentId) => {  // 本质上就是要将一个对象添加到另一个对象中
-            set((state) => {
-                if (parentId) {
-                    // 获取到父级对象
-                    const parentComponent = getComponentById(parentId, state.components)
-                    if (parentComponent) {
-                        if (parentComponent.children) {
-                            parentComponent.children.push(component)
-                        } else {
-                            parentComponent.children = [component]
-                        }
-                    }
-                    component.parentId = parentId
-                    return {
-                        components: [...state.components]
-                    }
-                }
-                return {
-                    components: [...state.components, component]
-                }
-            })
-        },
-        deleteComponent: (componentId) => { // 在整个 json 对象中找到某一个子对象的 id 为 componentId，移除该子对象
-            if (!componentId) return
-            // 找到组件
-            const component = getComponentById(componentId, get().components)
-            if (!component) return
+const initialComponents = createEmptyEditorTree() as Component[]
 
-            if (component.parentId) { // 有父级，从父级的 children 中删除
-                const parentComponent = getComponentById(component.parentId, get().components)
-                if (parentComponent && parentComponent.children) {
-                    parentComponent.children = parentComponent.children.filter((item) => item.id !== componentId)
-                    set({
-                        components: [...get().components]
-                    })
-                }
-            } else { // 没有父级，从顶级组件数组中删除
-                set({
-                    components: get().components.filter((item) => item.id !== componentId)
-                })
-            }
-        },
-        updateComponentProps: (componentId, props) => {
-            set((state) => {
-                const component = getComponentById(componentId, state.components)
-                if (component) {
-                    component.props = { ...component.props, ...props }
-                    // 如果更新的是当前选中的组件，同步更新 curComponent
-                    const updatedComponent = state.curComponentId === componentId
-                        ? getComponentById(componentId, [...state.components])
-                        : state.curComponent
-                    return {
-                        components: [...state.components],
-                        curComponent: updatedComponent
-                    }
-                }
-                return { components: [...state.components] }
-            })
-        },
-        setCurComponentId: (componentId) => {
-            set((state) => ({
-                curComponentId: componentId,
-                curComponent: getComponentById(componentId, state.components)
-            }))
-        },
-        updateComponentStyles: (componentId, styles) => {  // 更新组件样式
-            set(state => {
-                const component = getComponentById(componentId, state.components)
-                if (component) {
-                    component.styles = { ...component.styles, ...styles }
-                    // 如果更新的是当前选中的组件，同步更新 curComponent
-                    const updatedComponent = state.curComponentId === componentId
-                        ? getComponentById(componentId, [...state.components])
-                        : state.curComponent
-                    return {
-                        components: [...state.components],
-                        curComponent: updatedComponent
-                    }
-                }
-                return {
-                    components: [...state.components]
-                }
-            })
-        },
-        /**
-         * 更新组件事件配置
-         * 
-         * 更新指定组件的事件配置
-         * 如果更新的是当前选中的组件，会同步更新 curComponent
-         * 
-         * @param componentId - 组件 ID
-         * @param events - 要更新的事件配置对象（格式：{ eventType: ComponentEvent }）
-         * 
-         * @example
-         * updateComponentEvents(123, {
-         *   onClick: {
-         *     eventType: 'onClick',
-         *     actionType: 'showMessage',
-         *     actionConfig: { type: 'success', content: '点击成功' }
-         *   }
-         * })
-         */
-        updateComponentEvents: (componentId, events) => {
-            set(state => {
-                const component = getComponentById(componentId, state.components)
-                if (component) {
-                    // 合并事件配置（新配置会覆盖旧配置）
-                    component.events = { ...component.events, ...events }
+export const useComponentsStore = create<State & Action>((set, get) => ({
+  components: initialComponents,
+  curComponentId: null,
+  curComponent: null,
+  mode: 'edit',
+  canvasScale: 1,
+  history: createHistoryState(initialComponents),
 
-                    // 如果更新的是当前选中的组件，同步更新 curComponent
-                    // 这样属性面板中的事件配置会立即更新
-                    const updatedComponent = state.curComponentId === componentId
-                        ? getComponentById(componentId, [...state.components])
-                        : state.curComponent
-                    return {
-                        components: [...state.components],
-                        curComponent: updatedComponent
-                    }
-                }
-                return {
-                    components: [...state.components]
-                }
-            })
-        },
-        setMode: (mode) => {
-            set({
-                mode: mode
-            })
-        },
-        setComponents: (components) => {
-            set({
-                components: components,
-                curComponentId: null,
-                curComponent: null
-            })
-        }
-    })
-)
+  addComponent: (component, parentId) => {
+    const nextComponents = addComponentToTree(get().components, component, parentId) as Component[]
+    syncComponents(set, get, nextComponents)
+  },
 
-export function getComponentById(id: number | null, components: Component[]): Component | null {
-    if (!id) return null
-    for (const component of components) {
-        if (component.id === id) {
-            return component
-        }
-        if (component.children && component.children.length > 0) {
-            const result = getComponentById(id, component.children)
-            if (result) {
-                return result
-            }
-        }
+  deleteComponent: (componentId) => {
+    if (!componentId || componentId === 1) {
+      return
     }
-    return null
+
+    const nextComponents = deleteComponentFromTree(get().components, componentId) as Component[]
+    const selectedId = get().curComponentId === componentId ? null : get().curComponentId ?? null
+    syncComponents(set, get, nextComponents, selectedId)
+  },
+
+  copyComponent: (componentId) => {
+    if (!componentId) {
+      return
+    }
+
+    const previous = get().components
+    const { components: nextComponents, copiedRootId } = copyComponentWithMetadata(previous, componentId)
+    if (nextComponents === previous) {
+      return
+    }
+
+    syncComponents(set, get, nextComponents as Component[], copiedRootId)
+  },
+
+  moveComponent: (componentId, targetParentId, targetIndex) => {
+    const nextComponents = moveComponentInTree(get().components, componentId, targetParentId, targetIndex) as Component[]
+    syncComponents(set, get, nextComponents, get().curComponentId ?? null)
+  },
+
+  updateComponentProps: (componentId, props) => {
+    const nextComponents = updateComponentInTree(get().components, componentId, (component) => ({
+      ...component,
+      props: { ...component.props, ...props },
+    })) as Component[]
+    syncComponents(set, get, nextComponents)
+  },
+
+  updateComponentBindings: (componentId, bindings) => {
+    const nextComponents = updateComponentInTree(get().components, componentId, (component) => ({
+      ...component,
+      bindings,
+    })) as Component[]
+    syncComponents(set, get, nextComponents)
+  },
+
+  updateComponentSharedStyle: (componentId, sharedStyleId) => {
+    const nextComponents = updateComponentInTree(get().components, componentId, (component) => ({
+      ...component,
+      sharedStyleId,
+    })) as Component[]
+    syncComponents(set, get, nextComponents)
+  },
+
+  setCurComponentId: (componentId) => {
+    set((state) => ({
+      curComponentId: componentId,
+      curComponent: getComponentById(componentId, state.components) as Component | null,
+    }))
+  },
+
+  updateComponentStyles: (componentId, styles) => {
+    const nextComponents = updateComponentInTree(get().components, componentId, (component) => ({
+      ...component,
+      styles: { ...component.styles, ...styles },
+    })) as Component[]
+    syncComponents(set, get, nextComponents)
+  },
+
+  updateComponentEvents: (componentId, events) => {
+    const nextComponents = updateComponentInTree(get().components, componentId, (component) => ({
+      ...component,
+      events: { ...component.events, ...events },
+    })) as Component[]
+    syncComponents(set, get, nextComponents)
+  },
+
+  undo: () => {
+    const { history } = get()
+    if (!history.past.length) {
+      return
+    }
+
+    const nextHistory = undoHistory(history)
+    applyHistoryToState(set, get, nextHistory)
+  },
+
+  redo: () => {
+    const { history } = get()
+    if (!history.future.length) {
+      return
+    }
+
+    const nextHistory = redoHistory(history)
+    applyHistoryToState(set, get, nextHistory)
+  },
+
+  zoomIn: () => {
+    set((state) => ({
+      canvasScale: stepCanvasScale(state.canvasScale, 'in'),
+    }))
+  },
+
+  zoomOut: () => {
+    set((state) => ({
+      canvasScale: stepCanvasScale(state.canvasScale, 'out'),
+    }))
+  },
+
+  resetCanvasScale: () => {
+    set({
+      canvasScale: 1,
+    })
+  },
+
+  setCanvasScale: (scale) => {
+    set({
+      canvasScale: clampCanvasScale(scale),
+    })
+  },
+
+  setMode: (mode) => {
+    set({
+      mode,
+    })
+  },
+
+  setComponents: (components) => {
+    const nextHistory = applyHistorySnapshot(get().history, components)
+    set({
+      components,
+      history: nextHistory,
+      curComponentId: null,
+      curComponent: null,
+    })
+  },
+}))
+
+function syncComponents(
+  set: (partial: Partial<State & Action> | ((state: State & Action) => Partial<State & Action>)) => void,
+  get: () => State & Action,
+  components: Component[],
+  preferredComponentId?: number | null,
+): void {
+  const state = get()
+  if (components === state.components) {
+    return
+  }
+
+  const nextHistory = pushHistory(state.history, components)
+  const nextSelectedId = resolveSelectedId(preferredComponentId ?? state.curComponentId ?? null, components)
+
+  set({
+    components,
+    history: nextHistory,
+    curComponentId: nextSelectedId,
+    curComponent: getComponentById(nextSelectedId, components) as Component | null,
+  })
 }
 
-// a = {
-//   id: 1,
-//   name: 'Page',
-//   children: [
-//     {
-//       id: 3,
-//       name: 'foot',
-//       parentId: 1
-//     }
-//   ]
-// }
+function applyHistoryToState(
+  set: (partial: Partial<State & Action>) => void,
+  get: () => State & Action,
+  history: ComponentHistoryState,
+): void {
+  const nextSelectedId = resolveSelectedId(get().curComponentId ?? null, history.present)
+  set({
+    history,
+    components: history.present as Component[],
+    curComponentId: nextSelectedId,
+    curComponent: getComponentById(nextSelectedId, history.present) as Component | null,
+  })
+}
 
-// b = {
-//   id: 2,
-//   name: 'Header',
-//   text: 'hello'
-// }
+function resolveSelectedId(componentId: number | null, components: Component[]): number | null {
+  if (!componentId) {
+    return null
+  }
+
+  return getComponentById(componentId, components) ? componentId : null
+}
+
+export { getComponentById }

@@ -7,19 +7,23 @@ import Register from '../pages/Register';
 import Projects from '../pages/Projects';
 import LowcodeEditor from '../editor/index';
 import ProtectedRoute from './ProtectedRoute';
+import RouteErrorBoundary from './RouteErrorBoundary';
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <Navigate to="/projects" replace />,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/login',
     element: <Login />,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/register',
     element: <Register />,
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/projects',
@@ -28,6 +32,7 @@ export const router = createBrowserRouter([
         <Projects />
       </ProtectedRoute>
     ),
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/editor/:projectId',
@@ -36,6 +41,7 @@ export const router = createBrowserRouter([
         <LowcodeEditor />
       </ProtectedRoute>
     ),
+    errorElement: <RouteErrorBoundary />,
   },
   {
     path: '/editor',
@@ -44,5 +50,6 @@ export const router = createBrowserRouter([
         <LowcodeEditor />
       </ProtectedRoute>
     ),
+    errorElement: <RouteErrorBoundary />,
   },
 ]);

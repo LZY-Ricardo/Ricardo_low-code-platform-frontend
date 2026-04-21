@@ -1,7 +1,7 @@
 /**
  * 注册页面
  */
-import { Form, Input, Button, Card, message } from 'antd';
+import { App as AntdApp, Form, Input, Button, Card } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
@@ -14,6 +14,7 @@ interface RegisterFormValues extends RegisterRequest {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { message } = AntdApp.useApp();
   const { register, loading, isAuthenticated } = useAuthStore();
   const [form] = Form.useForm();
 

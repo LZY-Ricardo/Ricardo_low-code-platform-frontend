@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Space, Popconfirm } from 'antd'
 import { getComponentById, useComponentsStore } from '../../stores/components'
-import { DeleteOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined } from '@ant-design/icons'
 
 interface SelectedMaskProps {
     containerClassName: string
@@ -22,7 +22,7 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
 
     const [portalElement, setPortalElement] = useState<HTMLElement | null>(null)
 
-    const { components, deleteComponent, setCurComponentId } = useComponentsStore()
+    const { components, copyComponent, deleteComponent, setCurComponentId } = useComponentsStore()
 
     // 使用 useCallback 定义 updatePosition，避免依赖问题
     const updatePosition = useCallback(() => {
@@ -191,6 +191,11 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
         setCurComponentId(null)
     }
 
+    const handleCopy = (e?: React.MouseEvent) => {
+        e?.stopPropagation()
+        copyComponent(componentId)
+    }
+
     // 如果 portal 元素不存在，不渲染任何内容
     if (!portalElement) {
         return null
@@ -239,20 +244,28 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
                         {curComponent?.desc}
                     </div>
                     {componentId !== 1 && (
-                        <div
-                            data-delete-button="true"
-                            style={{ padding: '0 8px', backgroundColor: 'blue', pointerEvents: 'auto' }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <Popconfirm
-                                title="确认删除？"
-                                okText={'确认'}
-                                cancelText={'取消'}
-                                onConfirm={handleDelete}
+                        <>
+                            <div
+                                style={{ padding: '0 8px', backgroundColor: 'blue', pointerEvents: 'auto' }}
+                                onClick={handleCopy}
                             >
-                                <DeleteOutlined style={{ color: '#fff', cursor: 'pointer' }} />
-                            </Popconfirm>
-                        </div>
+                                <CopyOutlined style={{ color: '#fff', cursor: 'pointer' }} />
+                            </div>
+                            <div
+                                data-delete-button="true"
+                                style={{ padding: '0 8px', backgroundColor: 'blue', pointerEvents: 'auto' }}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Popconfirm
+                                    title="确认删除？"
+                                    okText={'确认'}
+                                    cancelText={'取消'}
+                                    onConfirm={handleDelete}
+                                >
+                                    <DeleteOutlined style={{ color: '#fff', cursor: 'pointer' }} />
+                                </Popconfirm>
+                            </div>
+                        </>
                     )}
                 </Space>
             </div>

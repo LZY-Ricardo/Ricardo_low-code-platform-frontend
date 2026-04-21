@@ -54,7 +54,7 @@ ${this.getInteractiveScripts()}
       const attrs = this.getHTMLAttributes(name, props)
 
       // 处理样式
-      const style = styles ? this.styleObjectToString(styles) : ''
+      const style = styles ? this.styleObjectToString(styles as Record<string, unknown>) : ''
 
       // 处理事件
       const eventAttrs = events ? this.getEventAttributes(events) : ''
@@ -76,8 +76,11 @@ ${this.getInteractiveScripts()}
       // 渲染内容
       if (children && children.length > 0) {
         html += '\n' + this.renderComponents(children, level + 1) + '\n' + indent
-      } else if (props?.text) {
-        html += this.escapeHtml(props.text)
+      } else {
+        const text = this.getStringProp(props, 'text')
+        if (text) {
+          html += this.escapeHtml(text)
+        }
       }
 
       // 渲染闭标签
@@ -90,7 +93,7 @@ ${this.getInteractiveScripts()}
   /**
    * 组件名映射为 HTML 标签
    */
-  private getHTMLTag(componentName: string, props: any): string {
+  private getHTMLTag(componentName: string, props: Record<string, unknown>): string {
     const tagMap: Record<string, string> = {
       'Page': 'div',
       'Container': 'div',
@@ -103,7 +106,7 @@ ${this.getInteractiveScripts()}
 
     // Title 需要根据 level 动态处理
     if (componentName === 'Title') {
-      const level = props?.level || 1
+      const level = this.getNumberProp(props, 'level') ?? 1
       return `h${Math.min(Math.max(level, 1), 6)}`
     }
 
@@ -113,7 +116,7 @@ ${this.getInteractiveScripts()}
   /**
    * 生成 HTML 属性
    */
-  private getHTMLAttributes(componentName: string, props: any): string {
+  private getHTMLAttributes(componentName: string, props: Record<string, unknown>): string {
     const attrs: string[] = []
 
     // 添加 class
@@ -131,29 +134,39 @@ ${this.getInteractiveScripts()}
         break
 
       case 'Input':
+      {
         attrs.push('type="text"')
-        if (props?.placeholder) {
-          attrs.push(`placeholder="${this.escapeHtml(props.placeholder)}"`)
+        const placeholder = this.getStringProp(props, 'placeholder')
+        if (placeholder) {
+          attrs.push(`placeholder="${this.escapeHtml(placeholder)}"`)
         }
-        if (props?.value) {
-          attrs.push(`value="${this.escapeHtml(props.value)}"`)
+        const value = this.getStringProp(props, 'value')
+        if (value) {
+          attrs.push(`value="${this.escapeHtml(value)}"`)
         }
         break
+      }
 
       case 'Image':
-        if (props?.src) {
-          attrs.push(`src="${this.escapeHtml(props.src)}"`)
+      {
+        const src = this.getStringProp(props, 'src')
+        if (src) {
+          attrs.push(`src="${this.escapeHtml(src)}"`)
         }
-        if (props?.alt) {
-          attrs.push(`alt="${this.escapeHtml(props.alt)}"`)
+        const alt = this.getStringProp(props, 'alt')
+        if (alt) {
+          attrs.push(`alt="${this.escapeHtml(alt)}"`)
         }
-        if (props?.width) {
-          attrs.push(`width="${props.width}"`)
+        const width = this.getNumberProp(props, 'width')
+        if (width) {
+          attrs.push(`width="${width}"`)
         }
-        if (props?.height) {
-          attrs.push(`height="${props.height}"`)
+        const height = this.getNumberProp(props, 'height')
+        if (height) {
+          attrs.push(`height="${height}"`)
         }
         break
+      }
 
       case 'Card':
         if (props?.title) {
@@ -168,7 +181,7 @@ ${this.getInteractiveScripts()}
   /**
    * 获取组件的 CSS 类名
    */
-  private getClassName(componentName: string, props: any): string {
+  private getClassName(componentName: string, props: Record<string, unknown>): string {
     const classes: string[] = []
 
     switch (componentName) {
@@ -202,7 +215,7 @@ ${this.getInteractiveScripts()}
   /**
    * 样式对象转字符串
    */
-  private styleObjectToString(styles: any): string {
+  private styleObjectToString(styles: Record<string, unknown>): string {
     return Object.entries(styles)
       .map(([key, value]) => {
         // 将驼峰命名转换为短横线命名
@@ -219,7 +232,7 @@ ${this.getInteractiveScripts()}
   /**
    * 处理事件属性
    */
-  private getEventAttributes(events: any): string {
+  private getEventAttributes(events: Record<string, unknown>): string {
     const attrs: string[] = []
 
     // 将事件配置序列化为 data 属性
@@ -365,9 +378,11 @@ ${this.getInteractiveScripts()}
             }
             break
 
-          case 'goToUrl':
-            if (actionConfig && actionConfig.url) {
-              if (actionConfig.target === '_blank') {
+          case 'navigate':
+            if (actionConfig && actionConfig.targetType === 'page' && actionConfig.pageId) {
+              window.location.hash = actionConfig.pageId
+            } else if (actionConfig && actionConfig.url) {
+              if (actionConfig.openInNewTab) {
                 window.open(actionConfig.url)
               } else {
                 window.location.href = actionConfig.url
@@ -375,8 +390,18 @@ ${this.getInteractiveScripts()}
             }
             break
 
+          case 'callAPI':
+            if (actionConfig && actionConfig.url) {
+              fetch(actionConfig.url, { method: actionConfig.method || 'GET' })
+            }
+            break
+
           default:
             console.log('未知事件类型:', actionType)
+        }
+
+        if (Array.isArray(actionConfig.actions)) {
+          actionConfig.actions.forEach(handleEvent)
         }
       }
     })`
@@ -391,5 +416,15 @@ ${this.getInteractiveScripts()}
       .replace(/\n+/g, '\n')
       .replace(/>\s+</g, '><')
       .trim()
+  }
+
+  private getStringProp(props: Record<string, unknown>, key: string): string | null {
+    const value = props[key]
+    return typeof value === 'string' ? value : null
+  }
+
+  private getNumberProp(props: Record<string, unknown>, key: string): number | null {
+    const value = props[key]
+    return typeof value === 'number' ? value : null
   }
 }

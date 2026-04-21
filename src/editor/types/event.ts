@@ -13,12 +13,14 @@
  * 事件动作类型
  * 定义事件触发后可以执行的动作类型
  */
-export type ActionType =
+export type BuiltInActionType =
     | 'showMessage'      // 显示消息提示（使用 Ant Design 的 message 组件）
     | 'navigate'         // 页面跳转（支持当前窗口和新标签页）
     | 'setState'         // 更新组件状态（修改指定组件的 props）
     | 'callAPI'          // 调用 API（支持 GET、POST、PUT、DELETE）
     | 'customScript'     // 执行自定义脚本（JavaScript 代码）
+
+export type ActionType = BuiltInActionType | (string & {})
 
 /**
  * 事件类型
@@ -50,6 +52,11 @@ export interface ComponentEvent {
     actionConfig: Record<string, unknown>
 }
 
+export interface WorkflowAction {
+    actionType: ActionType
+    actionConfig: Record<string, unknown>
+}
+
 /**
  * 事件上下文
  * 事件执行时提供的上下文信息，用于在动作执行过程中获取数据和更新状态
@@ -70,6 +77,10 @@ export interface EventContext {
     eventData?: unknown
     /** 所有组件的数组 */
     components: unknown[]
+    /** 运行时变量 */
+    variables: Record<string, unknown>
+    /** 请求结果缓存 */
+    requestResults: Record<string, unknown>
     /** 根据组件 ID 获取组件实例的函数 */
     getComponentById: (id: number) => unknown | null
     /** 更新组件属性的函数 */
@@ -99,6 +110,8 @@ export interface ShowMessageConfig {
  * @property openInNewTab - 是否在新标签页打开，默认 false
  */
 export interface NavigateConfig {
+    targetType?: 'url' | 'page'
+    pageId?: string
     url: string
     openInNewTab?: boolean
 }
@@ -121,6 +134,8 @@ export interface SetStateConfig {
  * @property headers - 自定义请求头
  */
 export interface CallAPIConfig {
+    dataSourceId?: string
+    resultKey?: string
     url: string
     method: 'GET' | 'POST' | 'PUT' | 'DELETE'
     params?: Record<string, unknown>

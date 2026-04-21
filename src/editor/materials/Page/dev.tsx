@@ -1,4 +1,5 @@
 import type { CommonComponentProps } from '../../interface'
+import type { LegacyRef } from 'react'
 // import { useDrop } from 'react-dnd'
 // import { message } from 'antd'
 // import { useComponentsStore } from '../../stores/components'
@@ -32,14 +33,14 @@ export default function Page({ id, children, styles }: CommonComponentProps) {
     //   }
     // }))
 
-    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card'], id)
+    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag', 'Row', 'Col'], id)
 
     return (
         <>
             {contextHolder}
             <div
                 data-component-id={id}
-                ref={dropRef as any}
+                ref={dropRef as unknown as LegacyRef<HTMLDivElement>}
                 className='p-[20px] h-[100%] box-border'
                 style={{ ...styles, border: canDrop ? '2px solid blue' : 'none' }}
             >

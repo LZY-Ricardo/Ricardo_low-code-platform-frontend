@@ -2,6 +2,7 @@ import JSZip from 'jszip'
 import { BaseExporter } from './base-exporter'
 import { ExportFormat, type ExportOptions } from './types'
 import type { Component } from '@/editor/stores/components'
+import { buildJsActionSnippets } from '../action-runtime'
 
 export class VueExporter extends BaseExporter {
   format = ExportFormat.VUE
@@ -312,7 +313,7 @@ ${importsStr}</script>
       const attrs: string[] = []
       
       if (styles && Object.keys(styles).length > 0) {
-        const styleStr = this.styleObjectToString(styles)
+        const styleStr = this.styleObjectToString(styles as Record<string, unknown>)
         attrs.push(`:style="{ ${styleStr} }"`)
       }
 
@@ -329,11 +330,9 @@ ${importsStr}</script>
 
       if (events && events.onClick) {
         const { actionType, actionConfig } = events.onClick
-        if (actionType === 'showMessage' && actionConfig?.content) {
-          attrs.push(`@click="() => alert('${this.escapeHTML(actionConfig.content)}')"`)
-        } else if (actionType === 'goToUrl' && actionConfig?.url) {
-          const target = actionConfig.target || '_self'
-          attrs.push(`@click="() => window.open('${this.escapeHTML(actionConfig.url)}', '${target}')"`)
+        const snippets = buildJsActionSnippets(actionType, actionConfig, (text) => this.escapeHTML(text))
+        if (snippets.length > 0) {
+          attrs.push(`@click="() => { ${snippets.join('; ')} }"`)
         }
       }
 
@@ -343,9 +342,13 @@ ${importsStr}</script>
         return `${indentStr}<${tag}${attrsStr}>
 ${this.renderComponentsToTemplate(children, indent + 1)}
 ${indentStr}</${tag}>`
-      } else if (props?.text) {
-        return `${indentStr}<${tag}${attrsStr}>${props.text}</${tag}>`
-      } else if (this.isSelfClosing(name)) {
+      } else {
+        const text = typeof props?.text === 'string' ? props.text : null
+        if (text) {
+          return `${indentStr}<${tag}${attrsStr}>${text}</${tag}>`
+        }
+      }
+      if (this.isSelfClosing(name)) {
         return `${indentStr}<${tag}${attrsStr} />`
       } else {
         return `${indentStr}<${tag}${attrsStr}></${tag}>`
@@ -362,7 +365,7 @@ ${indentStr}</${tag}>`
       .replace(/'/g, '&#039;')
   }
 
-  private styleObjectToString(styles: any): string {
+  private styleObjectToString(styles: Record<string, unknown>): string {
     return Object.entries(styles)
       .map(([key, value]) => {
         const vueKey = key
