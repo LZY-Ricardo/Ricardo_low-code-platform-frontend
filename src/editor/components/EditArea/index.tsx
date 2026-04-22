@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useDragLayer } from 'react-dnd'
 import { useComponentsStore } from '../../stores/components'
 import type { Component } from '../../stores/components'
 import { useComponentConfigStore } from '../../stores/component-config'
@@ -7,6 +8,7 @@ import { useSharedStylesStore } from '../../stores/shared-styles'
 import HoverMask from '../HoverMask'
 import SelectedMask from '../SelectedMask'
 import { resolveBindingsMap } from '../../utils/binding'
+import { MATERIAL_DND_TYPE } from '../../utils/material-dnd'
 import {
     editAreaCanvasFrameClassName,
     editAreaCanvasScalerClassName,
@@ -22,6 +24,8 @@ export default function EditArea() {
     const requestResults = useRuntimeStateStore((state) => state.requestResults)
     const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
     const [hoverComponentId, setHoverComponentId] = useState<number>()
+
+    const isMaterialDragging = useDragLayer((monitor) => monitor.getItemType() === MATERIAL_DND_TYPE)
 
     function renderComponents(components: Component[]): React.ReactNode {
         return components.map((component: Component) => {
@@ -105,14 +109,14 @@ export default function EditArea() {
                     </div>
                 </div>
             </div>
-            {hoverComponentId && hoverComponentId !== curComponentId && (
+            {!isMaterialDragging && hoverComponentId && hoverComponentId !== curComponentId && (
                 <HoverMask
                     componentId={hoverComponentId}
                     containerClassName='edit-area'
                     portalWrapperClassName='portal-wrapper'
                 />
             )}
-            {curComponentId && (
+            {!isMaterialDragging && curComponentId && (
                 <SelectedMask
                     componentId={curComponentId}
                     containerClassName='edit-area'
