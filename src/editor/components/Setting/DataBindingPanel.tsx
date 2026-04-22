@@ -9,9 +9,11 @@ const { Text } = Typography
 
 export default function DataBindingPanel() {
   const [form] = Form.useForm()
-  const { curComponent, curComponentId, updateComponentBindings } = useComponentsStore()
-  const { componentConfig } = useComponentConfigStore()
-  const { dataSources } = useDataSourceStore()
+  const curComponent = useComponentsStore((state) => state.curComponent)
+  const curComponentId = useComponentsStore((state) => state.curComponentId)
+  const updateComponentBindings = useComponentsStore((state) => state.updateComponentBindings)
+  const componentConfig = useComponentConfigStore((state) => state.componentConfig)
+  const dataSources = useDataSourceStore((state) => state.dataSources)
 
   useEffect(() => {
     form.resetFields()
@@ -50,7 +52,7 @@ export default function DataBindingPanel() {
         ))}
       </div>
       <Form form={form} layout="vertical" onValuesChange={handleValuesChange}>
-        {bindableProps.map((prop) => (
+        {bindableProps.map((prop: string) => (
           <Form.Item key={prop} label={prop} name={prop}>
             <Input placeholder={`例如：variables.keyword 或 {{variables.keyword}}`} />
           </Form.Item>

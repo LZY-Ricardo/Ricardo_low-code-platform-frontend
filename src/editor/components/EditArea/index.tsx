@@ -7,10 +7,17 @@ import { useSharedStylesStore } from '../../stores/shared-styles'
 import HoverMask from '../HoverMask'
 import SelectedMask from '../SelectedMask'
 import { resolveBindingsMap } from '../../utils/binding'
+import {
+    editAreaCanvasFrameClassName,
+    editAreaCanvasScalerClassName,
+} from '../../utils/page-canvas-layout'
 
 export default function EditArea() {
-    const { components, setCurComponentId, curComponentId, canvasScale } = useComponentsStore()
-    const { componentConfig } = useComponentConfigStore()
+    const components = useComponentsStore((state) => state.components)
+    const setCurComponentId = useComponentsStore((state) => state.setCurComponentId)
+    const curComponentId = useComponentsStore((state) => state.curComponentId)
+    const canvasScale = useComponentsStore((state) => state.canvasScale)
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig)
     const variables = useRuntimeStateStore((state) => state.variables)
     const requestResults = useRuntimeStateStore((state) => state.requestResults)
     const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
@@ -89,9 +96,9 @@ export default function EditArea() {
             onClick={handleClick}
         >
             <div className='min-h-full p-6'>
-                <div className='flex min-h-full justify-center'>
+                <div className={editAreaCanvasFrameClassName}>
                     <div
-                        className='origin-top transition-transform duration-150'
+                        className={editAreaCanvasScalerClassName}
                         style={{ transform: `scale(${canvasScale})` }}
                     >
                         {components && renderComponents(components)}

@@ -5,7 +5,7 @@ import { useThemeColors } from '../../../stores/theme'
 
 export default function Container({ id, children, styles }: CommonComponentProps) {
 
-    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag', 'Row', 'Col'], id)
+    const { canDrop, dropRef, contextHolder } = useMaterialDrop(id)
     const themeColors = useThemeColors()
 
     return (

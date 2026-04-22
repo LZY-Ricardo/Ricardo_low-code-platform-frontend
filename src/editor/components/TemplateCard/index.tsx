@@ -15,15 +15,16 @@ interface TemplateCardProps {
   onUse: (template: TemplateItem) => void;
   onEdit?: (template: TemplateItem) => void;
   onDelete?: (template: TemplateItem) => void;
+  badgeText?: string;
 }
 
 const PLACEHOLDER_THUMBNAIL = (
-  <div className="w-full h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-    <AppstoreOutlined className="text-4xl text-gray-300" />
+  <div className="flex h-36 w-full items-center justify-center" style={{ backgroundImage: 'var(--surface-muted)' }}>
+    <AppstoreOutlined className="text-4xl text-text-secondary/40" />
   </div>
 );
 
-export default function TemplateCard({ template, onUse, onEdit, onDelete }: TemplateCardProps) {
+export default function TemplateCard({ template, onUse, onEdit, onDelete, badgeText }: TemplateCardProps) {
   const isOwner = !template.builtIn && template.userId;
   const themeColors = useThemeColors();
 
@@ -54,7 +55,7 @@ export default function TemplateCard({ template, onUse, onEdit, onDelete }: Temp
   return (
     <Card
       hoverable
-      className="overflow-hidden"
+      className="overflow-hidden border border-border-light bg-bg-secondary shadow-soft"
       styles={{ body: { padding: 0 } }}
     >
       {/* 缩略图 */}
@@ -83,6 +84,13 @@ export default function TemplateCard({ template, onUse, onEdit, onDelete }: Temp
               className="text-xs"
             />
           )}
+          {badgeText ? (
+            <Badge
+              count={badgeText}
+              style={{ backgroundColor: 'rgb(var(--text-primary))' }}
+              className="text-xs"
+            />
+          ) : null}
         </div>
         {/* 操作菜单 */}
         {menuItems && menuItems.length > 0 && (
@@ -92,7 +100,7 @@ export default function TemplateCard({ template, onUse, onEdit, onDelete }: Temp
                 type="text"
                 size="small"
                 icon={<MoreOutlined />}
-                className="bg-white/80 hover:bg-white shadow-sm"
+                className="bg-bg-secondary/90 text-text-secondary hover:!bg-bg-secondary hover:!text-text-primary shadow-soft"
                 onClick={(e) => e.stopPropagation()}
               />
             </Dropdown>

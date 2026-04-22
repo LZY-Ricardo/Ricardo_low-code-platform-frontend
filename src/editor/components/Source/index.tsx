@@ -10,12 +10,18 @@ import { useThemeStore } from '../../../stores/theme'
 import { createEditorSchema, isEditorSchema } from '../../utils/schema'
 
 export default function Source() {
-  const { components, setComponents } = useComponentsStore()
-  const { activePageId, pages } = useProjectStore()
-  const { dataSources, setDataSources } = useDataSourceStore()
-  const { setVariables, variables } = useRuntimeStateStore()
-  const { setSharedStyles, sharedStyles } = useSharedStylesStore()
-  const { currentThemeId, hydrateTheme } = useThemeStore()
+  const components = useComponentsStore((state) => state.components)
+  const setComponents = useComponentsStore((state) => state.setComponents)
+  const activePageId = useProjectStore((state) => state.activePageId)
+  const pages = useProjectStore((state) => state.pages)
+  const dataSources = useDataSourceStore((state) => state.dataSources)
+  const setDataSources = useDataSourceStore((state) => state.setDataSources)
+  const setVariables = useRuntimeStateStore((state) => state.setVariables)
+  const variables = useRuntimeStateStore((state) => state.variables)
+  const setSharedStyles = useSharedStylesStore((state) => state.setSharedStyles)
+  const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
+  const currentThemeId = useThemeStore((state) => state.currentThemeId)
+  const hydrateTheme = useThemeStore((state) => state.hydrateTheme)
   const [schemaText, setSchemaText] = useState('')
 
   useEffect(() => {

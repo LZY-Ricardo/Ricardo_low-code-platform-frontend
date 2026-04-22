@@ -8,6 +8,7 @@ import type {
   InternalAxiosRequestConfig,
 } from 'axios';
 import type { ApiError } from '../types/api';
+import { useAuthStore } from '../stores/auth';
 import { showError, showWarning } from '../utils/antdApp';
 
 function createClient(baseURL: string, timeout = 10000): AxiosInstance {
@@ -20,19 +21,20 @@ function createClient(baseURL: string, timeout = 10000): AxiosInstance {
   });
 }
 
-// 现有模块沿用 /api，新扩展模块统一使用 /api/v1
-export const apiClient = createClient(
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
-);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_V1_BASE_URL = import.meta.env.VITE_API_V1_BASE_URL || 'http://localhost:3000/api/v1';
 
-export const apiV1Client = createClient(
-  import.meta.env.VITE_API_V1_BASE_URL || 'http://localhost:3000/api/v1'
-);
+// 现有模块沿用 /api，新扩展模块统一使用 /api/v1
+export const apiClient = createClient(API_BASE_URL);
+
+export const apiV1Client = createClient(API_V1_BASE_URL);
 
 export const aiClient = createClient(
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  API_BASE_URL,
   Number(import.meta.env.VITE_AI_TIMEOUT_MS || '90000'),
 );
+
+const refreshClient = createClient(API_BASE_URL);
 
 // --- Token 刷新队列机制 ---
 let isRefreshing = false;
@@ -103,15 +105,18 @@ function attachInterceptors(client: AxiosInstance) {
         originalRequest._retry = true;
 
         try {
-          const authApi = await import('./auth');
-          const data = await authApi.refreshToken();
-          const newToken = data.accessToken;
+          const data = await refreshClient.post<{
+            code: number;
+            message: string;
+            data: { accessToken: string; expiresIn: number };
+          }>('/auth/refresh');
+          const refreshPayload = data.data.data;
+          const newToken = refreshPayload.accessToken;
 
           // 更新存储
           localStorage.setItem('lowcode_token', newToken);
 
           // 更新 auth store
-          const { useAuthStore } = await import('../stores/auth');
           useAuthStore.getState().updateToken(newToken);
 
           // 重试队列中所有等待的请求

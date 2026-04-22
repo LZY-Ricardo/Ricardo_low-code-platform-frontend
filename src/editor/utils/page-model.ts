@@ -31,11 +31,17 @@ export function replaceActivePageComponents(
   activePageId: string | null,
   components: Component[],
 ): EditorPage[] {
-  return pages.map((page) => (
-    page.id === activePageId
-      ? { ...page, components }
-      : page
-  ))
+  let changed = false
+  const nextPages = pages.map((page) => {
+    if (page.id !== activePageId || page.components === components) {
+      return page
+    }
+
+    changed = true
+    return { ...page, components }
+  })
+
+  return changed ? nextPages : pages
 }
 
 export function duplicatePage(pages: EditorPage[], pageId: string): EditorPage[] {

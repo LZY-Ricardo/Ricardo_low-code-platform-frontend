@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createBuiltInTemplates, getAllTemplates, saveTemplate } from './template-storage'
+import { loadCustomTemplates, normalizeTemplatePages, saveTemplate } from './template-storage'
 
 beforeEach(() => {
   const storage = new Map<string, string>()
@@ -11,15 +11,12 @@ beforeEach(() => {
 })
 
 describe('template storage', () => {
-  it('includes built-in templates by default', () => {
-    expect(createBuiltInTemplates().length).toBeGreaterThan(0)
-  })
-
-  it('saves and returns custom templates together with built-ins', () => {
+  it('saves and returns custom templates from local storage', () => {
     saveTemplate({
       id: 'custom-1',
       name: '自定义模板',
       description: '测试模板',
+      category: 'general',
       components: [],
       pages: [],
       dataSources: [],
@@ -29,8 +26,19 @@ describe('template storage', () => {
       builtIn: false,
     })
 
-    const templates = getAllTemplates()
-    expect(templates.some((item) => item.id === 'custom-1')).toBe(true)
-    expect(templates.some((item) => item.builtIn)).toBe(true)
+    const templates = loadCustomTemplates()
+    expect(templates).toHaveLength(1)
+    expect(templates[0].id).toBe('custom-1')
+    expect(templates[0].builtIn).toBe(false)
+  })
+
+  it('creates default page when template pages are missing', () => {
+    const pages = normalizeTemplatePages({
+      components: [{ id: 1, name: 'Page', props: {}, desc: '页面' }],
+      pages: [],
+    } as any)
+
+    expect(pages).toHaveLength(1)
+    expect(pages[0].components[0].name).toBe('Page')
   })
 })

@@ -3,6 +3,7 @@ import type { Component } from './components'
 import { StorageManager, type Project } from '../utils/storage'
 import * as projectsApi from '../../api/projects'
 import type { ProjectData } from '../../api/projects'
+import { getMyCollaborations, type CollaboratedProject } from '../../api/share'
 import { message } from 'antd'
 import type { SaveStatus } from '../utils/save-status'
 import { shouldMarkDirty } from '../utils/save-status'
@@ -17,6 +18,7 @@ import { useThemeStore } from '../../stores/theme'
 interface ProjectState {
     currentProject: Project | null
     projects: Project[]
+    collaboratedProjects: CollaboratedProject[]
     pages: EditorPage[]
     activePageId: string | null
     loading: boolean
@@ -29,6 +31,7 @@ interface ProjectActions {
     loadProjects: () => Promise<void>
     createProject: (name?: string, components?: Component[]) => Promise<Project>
     saveCurrentProject: (components: Component[]) => Promise<boolean>
+    persistProjectComponents: (projectId: string, components: Component[]) => Promise<boolean>
     switchProject: (projectId: string) => Promise<Project | null>
     deleteProject: (projectId: string) => Promise<boolean>
     renameProject: (projectId: string, newName: string) => Promise<boolean>
@@ -40,6 +43,7 @@ interface ProjectActions {
     addPage: () => EditorPage
     duplicateActivePage: (currentComponents: Component[]) => EditorPage | null
     renamePage: (pageId: string, name: string) => void
+    setProjectPublishUrl: (projectId: string, publishUrl: string | null) => void
 }
 
 const DEFAULT_COMPONENTS: Component[] = [
@@ -59,6 +63,8 @@ function convertToProject(data: ProjectData): Project {
         id: data.id,
         name: data.name,
         components: data.components,
+        publishUrl: data.publishUrl ?? null,
+        deletedAt: data.deletedAt ? new Date(data.deletedAt).getTime() : null,
         createdAt: new Date(data.createdAt).getTime(),
         updatedAt: new Date(data.updatedAt).getTime(),
     }
@@ -89,6 +95,7 @@ function getStoredSnapshot(project: Project): string {
 export const useProjectStore = create<ProjectState & ProjectActions>((set, get) => ({
     currentProject: null,
     projects: [],
+    collaboratedProjects: [],
     pages: [],
     activePageId: null,
     loading: false,
@@ -107,13 +114,21 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             if (isAuthenticated()) {
                 const response = await projectsApi.getProjects(1, 100)
                 const cloudProjects = response.projects.map(convertToProject)
-                
+
+                // 加载协作项目
+                let collaboratedProjects: CollaboratedProject[] = []
+                try {
+                    collaboratedProjects = await getMyCollaborations()
+                } catch {
+                    console.warn('Failed to load collaborated projects')
+                }
+
                 // 同步到 LocalStorage 缓存
                 cloudProjects.forEach(project => {
                     StorageManager.saveProject(project)
                 })
                 
-                set({ projects: cloudProjects, loading: false })
+                set({ projects: cloudProjects, collaboratedProjects, loading: false })
                 
                 // 设置当前项目
                 if (cloudProjects.length > 0) {
@@ -136,7 +151,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             } else {
                 // 未登录，从 LocalStorage 加载
                 const localProjects = StorageManager.getAllProjects()
-                set({ projects: localProjects, loading: false })
+                set({ projects: localProjects, collaboratedProjects: [], loading: false })
                 
                 if (localProjects.length === 0) {
                     const defaultProject = await get().createProject('默认项目', DEFAULT_COMPONENTS)
@@ -159,7 +174,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             console.error('Failed to load projects from cloud, fallback to local:', error)
             // 云端加载失败，降级到 LocalStorage
             const localProjects = StorageManager.getAllProjects()
-            set({ projects: localProjects, loading: false })
+            set({ projects: localProjects, collaboratedProjects: [], loading: false })
             
             if (localProjects.length === 0) {
                 const defaultProject = await get().createProject('默认项目', DEFAULT_COMPONENTS)
@@ -364,6 +379,57 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             }
             
             return success
+        }
+    },
+
+    persistProjectComponents: async (projectId, components) => {
+        const existingProject = get().projects.find((project) => project.id === projectId)
+            ?? (get().currentProject?.id === projectId ? get().currentProject : null)
+            ?? StorageManager.getProject(projectId)
+
+        if (!existingProject) {
+            console.warn(`Project ${projectId} not found`)
+            return false
+        }
+
+        const updatedProject: Project = {
+            ...existingProject,
+            components,
+            updatedAt: Date.now(),
+        }
+
+        const applyLocalState = () => {
+            StorageManager.saveProject(updatedProject)
+
+            const nextProjects = get().projects.map((project) => (
+                project.id === projectId ? updatedProject : project
+            ))
+            const nextCurrentProject = get().currentProject?.id === projectId
+                ? updatedProject
+                : get().currentProject
+
+            set({
+                projects: nextProjects,
+                currentProject: nextCurrentProject,
+                ...(nextCurrentProject?.id === projectId ? {
+                    saveStatus: 'saved' as const,
+                    lastSavedAt: updatedProject.updatedAt,
+                    lastPersistedSnapshot: getStoredSnapshot(updatedProject),
+                } : {}),
+            })
+        }
+
+        try {
+            if (isAuthenticated()) {
+                await projectsApi.updateProject(projectId, { components })
+            }
+
+            applyLocalState()
+            return true
+        } catch (error) {
+            console.error('Failed to persist project components to cloud, fallback to local:', error)
+            applyLocalState()
+            return true
         }
     },
 
@@ -622,6 +688,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
 
     initializePages: (project) => {
         if (!project) {
+            const state = get()
+            if (state.pages.length === 0 && state.activePageId === null) {
+                return
+            }
+
             set({ pages: [], activePageId: null })
             return
         }
@@ -632,17 +703,30 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
             ? meta.pages
             : [createPage('页面 1', stripSnapshotMeta(project.components))]
         const activePage = getActivePage(pages, meta.activePageId)
+        const state = get()
+        const nextActivePageId = activePage?.id ?? null
+
+        if (state.pages === pages && state.activePageId === nextActivePageId) {
+            return
+        }
 
         set({
             pages,
-            activePageId: activePage?.id ?? null,
+            activePageId: nextActivePageId,
         })
     },
 
     syncActivePageComponents: (components) => {
-        set((state) => ({
-            pages: replaceActivePageComponents(state.pages, state.activePageId, components),
-        }))
+        const state = get()
+        const nextPages = replaceActivePageComponents(state.pages, state.activePageId, components)
+
+        if (nextPages === state.pages) {
+            return
+        }
+
+        set({
+            pages: nextPages,
+        })
     },
 
     switchPage: (pageId, currentComponents) => {
@@ -693,5 +777,27 @@ export const useProjectStore = create<ProjectState & ProjectActions>((set, get) 
                     : page
             )),
         }))
+    },
+
+    setProjectPublishUrl: (projectId, publishUrl) => {
+        const now = Date.now()
+        const nextProjects = get().projects.map((project) => (
+            project.id === projectId
+                ? { ...project, publishUrl, updatedAt: now }
+                : project
+        ))
+        const nextCurrentProject = get().currentProject?.id === projectId
+            ? { ...get().currentProject!, publishUrl, updatedAt: now }
+            : get().currentProject
+
+        const changedProject = nextProjects.find((project) => project.id === projectId)
+        if (changedProject) {
+            StorageManager.saveProject(changedProject)
+        }
+
+        set({
+            projects: nextProjects,
+            currentProject: nextCurrentProject ?? get().currentProject,
+        })
     },
 }))

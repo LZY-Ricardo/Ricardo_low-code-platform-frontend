@@ -113,10 +113,13 @@ function renderRegistryField(
 
 export default function ComponentEvent() {
     const [form] = Form.useForm()
-    const { curComponentId, curComponent, updateComponentEvents } = useComponentsStore()
-    const { dataSources } = useDataSourceStore()
-    const { pages } = useProjectStore()
-    const { actions, getAction } = useActionRegistryStore()
+    const curComponentId = useComponentsStore((state) => state.curComponentId)
+    const curComponent = useComponentsStore((state) => state.curComponent)
+    const updateComponentEvents = useComponentsStore((state) => state.updateComponentEvents)
+    const dataSources = useDataSourceStore((state) => state.dataSources)
+    const pages = useProjectStore((state) => state.pages)
+    const actions = useActionRegistryStore((state) => state.actions)
+    const getAction = useActionRegistryStore((state) => state.getAction)
     /** 当前组件已配置的事件 */
     const [selectedEvents, setSelectedEvents] = useState<Record<string, ComponentEvent>>({})
 

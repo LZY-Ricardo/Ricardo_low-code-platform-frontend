@@ -51,3 +51,33 @@ export async function getCurrentUser(): Promise<User> {
   const response = await apiClient.get<BackendResponse<User>>('/auth/me');
   return response.data.data;
 }
+
+export async function updateProfile(data: {
+  username?: string;
+  avatarUrl?: string | null;
+}): Promise<User> {
+  const response = await apiClient.put<BackendResponse<User>>('/auth/profile', data);
+  return response.data.data;
+}
+
+export async function changePassword(data: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ success: boolean }> {
+  const response = await apiClient.put<BackendResponse<{ success: boolean }>>(
+    '/auth/password',
+    data,
+  );
+  return response.data.data;
+}
+
+/**
+ * 刷新 Token
+ */
+export async function refreshToken(): Promise<{ accessToken: string; expiresIn: number }> {
+  const response = await apiClient.post<BackendResponse<{
+    accessToken: string;
+    expiresIn: number;
+  }>>('/auth/refresh');
+  return response.data.data;
+}

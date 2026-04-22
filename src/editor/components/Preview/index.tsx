@@ -4,7 +4,7 @@ import type { Component } from '../../stores/components'
 import ComponentWithEvents from './ComponentWithEvents'
 
 export default function Preview() {
-    const { components } = useComponentsStore()
+    const components = useComponentsStore((state) => state.components)
 
     function renderComponents(components: Component[]): React.ReactNode {
         return components.map((component) => {

@@ -15,14 +15,18 @@ import {
   CopyOutlined,
   FileTextOutlined,
   MoreOutlined,
+  ShareAltOutlined,
+  UploadOutlined,
+  ColumnWidthOutlined,
+  FormOutlined,
 } from '@ant-design/icons'
 import { useComponentsStore } from '../../stores/components'
 import { useProjectStore } from '../../stores/project'
 import { useDataSourceStore } from '../../stores/data-source'
 import { useRuntimeStateStore } from '../../stores/runtime-state'
 import { useSharedStylesStore } from '../../stores/shared-styles'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { MenuProps } from 'antd'
 import ExportModal from '../ExportModal'
 import { formatSaveStatusText } from '../../utils/save-status'
@@ -31,30 +35,50 @@ import { useThemeStore } from '../../../stores/theme'
 import { buildPageMenuItems } from './page-menu'
 import SaveTemplateModal from '../SaveTemplateModal'
 import { generateThumbnail } from '../../utils/thumbnail'
+import PublishDialog from '../PublishDialog'
+import type { PublishResult } from '../../../api/publish'
+import ShareDialog from '../ShareDialog'
+import MarketTemplateModal from '../../../components/MarketTemplateModal'
+import type { MarketTemplateSource } from '../../../features/market-templates/utils/load-project-market-template-source'
+import CustomComponentManager from '../CustomComponent/CustomComponentManager'
 
-export default function Header() {
+interface HeaderProps {
+  onResetLayout?: () => void
+}
+
+export default function Header({ onResetLayout }: HeaderProps) {
   const navigate = useNavigate()
-  const { mode, setMode, components, history, undo, redo, canvasScale, zoomIn, zoomOut, resetCanvasScale } = useComponentsStore()
-  const { dataSources } = useDataSourceStore()
-  const { variables } = useRuntimeStateStore()
-  const { sharedStyles } = useSharedStylesStore()
-  const { currentThemeId } = useThemeStore()
-  const { 
-    activePageId,
-    addPage,
-    currentProject, 
-    duplicateActivePage,
-    pages,
-    projects, 
-    renamePage,
-    saveStatus,
-    saveCurrentProject, 
-    createProject,
-    renameProject,
-    deleteProject,
-    lastSavedAt,
-    switchPage,
-  } = useProjectStore()
+  const location = useLocation()
+  const mode = useComponentsStore((state) => state.mode)
+  const setMode = useComponentsStore((state) => state.setMode)
+  const components = useComponentsStore((state) => state.components)
+  const curComponent = useComponentsStore((state) => state.curComponent)
+  const history = useComponentsStore((state) => state.history)
+  const undo = useComponentsStore((state) => state.undo)
+  const redo = useComponentsStore((state) => state.redo)
+  const canvasScale = useComponentsStore((state) => state.canvasScale)
+  const zoomIn = useComponentsStore((state) => state.zoomIn)
+  const zoomOut = useComponentsStore((state) => state.zoomOut)
+  const resetCanvasScale = useComponentsStore((state) => state.resetCanvasScale)
+  const dataSources = useDataSourceStore((state) => state.dataSources)
+  const variables = useRuntimeStateStore((state) => state.variables)
+  const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
+  const currentThemeId = useThemeStore((state) => state.currentThemeId)
+  const activePageId = useProjectStore((state) => state.activePageId)
+  const addPage = useProjectStore((state) => state.addPage)
+  const currentProject = useProjectStore((state) => state.currentProject)
+  const duplicateActivePage = useProjectStore((state) => state.duplicateActivePage)
+  const pages = useProjectStore((state) => state.pages)
+  const projects = useProjectStore((state) => state.projects)
+  const renamePage = useProjectStore((state) => state.renamePage)
+  const saveStatus = useProjectStore((state) => state.saveStatus)
+  const saveCurrentProject = useProjectStore((state) => state.saveCurrentProject)
+  const createProject = useProjectStore((state) => state.createProject)
+  const renameProject = useProjectStore((state) => state.renameProject)
+  const deleteProject = useProjectStore((state) => state.deleteProject)
+  const lastSavedAt = useProjectStore((state) => state.lastSavedAt)
+  const setProjectPublishUrl = useProjectStore((state) => state.setProjectPublishUrl)
+  const switchPage = useProjectStore((state) => state.switchPage)
   
   const [renameModalVisible, setRenameModalVisible] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
@@ -64,7 +88,26 @@ export default function Header() {
   const [renamePageName, setRenamePageName] = useState('')
   const [saveTemplateModalVisible, setSaveTemplateModalVisible] = useState(false)
   const [templateThumbnail, setTemplateThumbnail] = useState<string | null>(null)
+  const [marketTemplateModalVisible, setMarketTemplateModalVisible] = useState(false)
+  const [marketTemplateSource, setMarketTemplateSource] = useState<MarketTemplateSource | null>(null)
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [customComponentManagerOpen, setCustomComponentManagerOpen] = useState(false)
+  const [marketComponentManagerOpen, setMarketComponentManagerOpen] = useState(false)
   const activePageName = pages.find((item) => item.id === activePageId)?.name ?? '页面'
+
+  useEffect(() => {
+    const state = location.state as { openPublishDialog?: boolean } | null
+    if (!state?.openPublishDialog) {
+      return
+    }
+
+    setPublishDialogOpen(true)
+    navigate(location.pathname, {
+      replace: true,
+      state: null,
+    })
+  }, [location.pathname, location.state, navigate])
 
   const handleSave = async () => {
     const success = await saveCurrentProject(components)
@@ -91,6 +134,37 @@ export default function Header() {
     }
     setTemplateThumbnail(thumb)
     setSaveTemplateModalVisible(true)
+  }
+
+  const handleSaveToMarket = async () => {
+    if (!currentProject) {
+      message.warning('当前没有可保存的项目')
+      return
+    }
+
+    const canvasEl = document.querySelector('.canvas-area') as HTMLElement
+      || document.querySelector('[data-canvas]') as HTMLElement
+      || document.querySelector('.edit-area') as HTMLElement
+    let thumb: string | null = null
+    if (canvasEl) {
+      thumb = await generateThumbnail(canvasEl)
+    }
+    setTemplateThumbnail(thumb)
+    setMarketTemplateSource({
+      components,
+      pages,
+      dataSources,
+      variables,
+      sharedStyles,
+      themeId: currentThemeId,
+    })
+    setMarketTemplateModalVisible(true)
+  }
+
+  const handlePublished = (result: PublishResult) => {
+    if (currentProject) {
+      setProjectPublishUrl(currentProject.id, result.publishUrl)
+    }
   }
 
   const handleAddPage = () => {
@@ -137,6 +211,18 @@ export default function Header() {
     await saveCurrentProject(components)
     navigate('/projects')
   }
+
+  const handleOpenForms = async () => {
+    await saveCurrentProject(components)
+    navigate('/forms', {
+      state: {
+        projectId: currentProject?.id,
+        selectedFormComponentId: curComponent?.name === 'Form' ? curComponent.id : undefined,
+        source: 'editor',
+      },
+    })
+  }
+
 
   const handleNewProject = async () => {
     await saveCurrentProject(components)
@@ -268,6 +354,31 @@ export default function Header() {
       onClick: handleSaveTemplate,
     },
     {
+      key: 'save-market-template',
+      label: '保存到市场',
+      icon: <UploadOutlined />,
+      onClick: handleSaveToMarket,
+    },
+    {
+      key: 'forms',
+      label: '表单数据',
+      icon: <FormOutlined />,
+      disabled: !currentProject,
+      onClick: handleOpenForms,
+    },
+    {
+      key: 'manage-custom-components',
+      label: '自定义组件管理',
+      icon: <AppstoreAddOutlined />,
+      onClick: () => setCustomComponentManagerOpen(true),
+    },
+    {
+      key: 'manage-market-components',
+      label: '市场组件管理',
+      icon: <AppstoreAddOutlined />,
+      onClick: () => setMarketComponentManagerOpen(true),
+    },
+    {
       key: 'add-page',
       label: '新增页面',
       icon: <PlusOutlined />,
@@ -302,13 +413,13 @@ export default function Header() {
                 type="text" 
                 icon={<LeftOutlined />}
                 onClick={handleBackToProjects}
-                className='flex-shrink-0 text-gray-600 hover:text-accent'
+                className='flex-shrink-0 text-text-secondary hover:text-accent'
                 aria-label='返回项目列表'
               />
             </Tooltip>
             {currentProject && (
               <>
-                <span className='flex-shrink-0 text-gray-400'>/</span>
+                <span className='flex-shrink-0 text-text-secondary/60'>/</span>
                 <Tooltip title={currentProject.name}>
                   <span className='inline-block min-w-[72px] max-w-[180px] truncate text-base font-medium text-text-primary'>
                     {currentProject.name}
@@ -316,7 +427,7 @@ export default function Header() {
                 </Tooltip>
                 {pages.length > 0 && (
                   <>
-                    <span className='flex-shrink-0 text-gray-400'>/</span>
+                    <span className='flex-shrink-0 text-text-secondary/60'>/</span>
                     <Tooltip title={activePageName}>
                       <Dropdown menu={{ items: pageMenuItems }} trigger={['click']}>
                         <Button
@@ -346,11 +457,6 @@ export default function Header() {
             </div>
           )}
           {mode === 'edit' && (
-            <div className='hidden flex-shrink-0 text-xs text-text-muted 2xl:block'>
-              快捷键：复制 `Ctrl/Cmd+C` 撤销 `Ctrl/Cmd+Z`
-            </div>
-          )}
-          {mode === 'edit' && (
             <>
               <Button
                 icon={<ZoomOutOutlined />}
@@ -365,19 +471,29 @@ export default function Header() {
                 onClick={zoomIn}
                 disabled={canvasScale >= 2}
               />
+              <Tooltip title="撤销 (Ctrl/Cmd+Z)">
+                <Button
+                  icon={<UndoOutlined />}
+                  onClick={undo}
+                  disabled={history.past.length === 0}
+                >
+                  撤销
+                </Button>
+              </Tooltip>
+              <Tooltip title="重做 (Ctrl/Cmd+Shift+Z)">
+                <Button
+                  icon={<RedoOutlined />}
+                  onClick={redo}
+                  disabled={history.future.length === 0}
+                >
+                  重做
+                </Button>
+              </Tooltip>
               <Button
-                icon={<UndoOutlined />}
-                onClick={undo}
-                disabled={history.past.length === 0}
+                icon={<ColumnWidthOutlined />}
+                onClick={onResetLayout}
               >
-                撤销
-              </Button>
-              <Button
-                icon={<RedoOutlined />}
-                onClick={redo}
-                disabled={history.future.length === 0}
-              >
-                重做
+                恢复宽度
               </Button>
               <Button 
                 icon={<SaveOutlined />}
@@ -390,6 +506,18 @@ export default function Header() {
                 onClick={handleNewProject}
               >
                 新建项目
+              </Button>
+              <Button
+                icon={<UploadOutlined />}
+                onClick={() => setPublishDialogOpen(true)}
+              >
+                发布
+              </Button>
+              <Button
+                icon={<ShareAltOutlined />}
+                onClick={() => setShareDialogOpen(true)}
+              >
+                分享
               </Button>
               <Dropdown
                 menu={{ items: moreMenuItems }}
@@ -479,6 +607,47 @@ export default function Header() {
         sharedStyles={sharedStyles}
         themeId={currentThemeId}
         thumbnail={templateThumbnail}
+      />
+
+      <PublishDialog
+        open={publishDialogOpen}
+        projectId={currentProject?.id}
+        initialPublishUrl={currentProject?.publishUrl ?? null}
+        onCancel={() => setPublishDialogOpen(false)}
+        onPublished={handlePublished}
+      />
+
+      <ShareDialog
+        open={shareDialogOpen}
+        projectId={currentProject?.id}
+        onCancel={() => setShareDialogOpen(false)}
+      />
+
+      <MarketTemplateModal
+        open={marketTemplateModalVisible}
+        onCancel={() => {
+          setMarketTemplateModalVisible(false)
+          setMarketTemplateSource(null)
+        }}
+        onSuccess={() => {
+          setMarketTemplateModalVisible(false)
+          setMarketTemplateSource(null)
+        }}
+        defaultName={currentProject ? `${currentProject.name} 市场模板` : ''}
+        thumbnail={templateThumbnail}
+        source={marketTemplateSource}
+      />
+
+      <CustomComponentManager
+        open={customComponentManagerOpen}
+        onClose={() => setCustomComponentManagerOpen(false)}
+        source="user"
+      />
+
+      <CustomComponentManager
+        open={marketComponentManagerOpen}
+        onClose={() => setMarketComponentManagerOpen(false)}
+        source="market"
       />
     </div>
   )

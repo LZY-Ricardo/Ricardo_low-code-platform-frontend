@@ -5,7 +5,7 @@ import { useMaterialDrop } from '../../hooks/useMaterialDrop'
 import { useThemeColors } from '../../../stores/theme'
 
 export default function Modal({ id, title, content, okText, cancelText, children, styles }: CommonComponentProps) {
-  const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table'], id)
+  const { canDrop, dropRef, contextHolder } = useMaterialDrop(id)
   const themeColors = useThemeColors()
 
   return (

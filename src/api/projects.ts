@@ -12,6 +12,8 @@ export interface ProjectData {
   name: string;
   components: Component[];
   userId: string;
+  publishUrl?: string | null;
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

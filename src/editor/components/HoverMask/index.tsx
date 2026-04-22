@@ -11,7 +11,7 @@ interface HoverMaskProps {
 
 // HoverMask 会在鼠标移入组件时显示，并能完整覆盖整个组件
 export default function HoverMask({ containerClassName, componentId, portalWrapperClassName }: HoverMaskProps) {
-    const { components } = useComponentsStore()
+    const components = useComponentsStore((state) => state.components)
     const themeColors = useThemeColors()
 
     const [position, setPosition] = useState({

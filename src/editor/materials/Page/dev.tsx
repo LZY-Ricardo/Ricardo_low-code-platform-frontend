@@ -5,6 +5,7 @@ import type { LegacyRef } from 'react'
 // import { useComponentsStore } from '../../stores/components'
 // import { useComponentConfigStore } from '../../stores/component-config'
 import { useMaterialDrop } from '../../hooks/useMaterialDrop'
+import { rootPageCanvasClassName } from '../../utils/page-canvas-layout'
 
 export default function Page({ id, children, styles }: CommonComponentProps) {
 
@@ -33,7 +34,7 @@ export default function Page({ id, children, styles }: CommonComponentProps) {
     //   }
     // }))
 
-    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag', 'Row', 'Col'], id)
+    const { canDrop, dropRef, contextHolder } = useMaterialDrop(id)
 
     return (
         <>
@@ -41,7 +42,7 @@ export default function Page({ id, children, styles }: CommonComponentProps) {
             <div
                 data-component-id={id}
                 ref={dropRef as unknown as LegacyRef<HTMLDivElement>}
-                className='p-[20px] h-[100%] box-border'
+                className={rootPageCanvasClassName}
                 style={{ ...styles, border: canDrop ? '2px solid blue' : 'none' }}
             >
                 {children}

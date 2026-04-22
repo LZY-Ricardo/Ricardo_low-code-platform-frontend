@@ -6,6 +6,7 @@ import type {
   SetStateConfig,
   ShowMessageConfig,
 } from '../types/event'
+import { message } from 'antd'
 import { executeDataSourceRequest } from './request'
 import { useDataSourceStore } from '../stores/data-source'
 import { useRuntimeStateStore } from '../stores/runtime-state'
@@ -15,7 +16,6 @@ import { useComponentsStore } from '../stores/components'
 export type EscapeFn = (text: string) => string
 
 export async function executeShowMessage(config: ShowMessageConfig): Promise<void> {
-  const { message } = await import('antd')
   message[config.type](config.content, config.duration || 3)
 }
 

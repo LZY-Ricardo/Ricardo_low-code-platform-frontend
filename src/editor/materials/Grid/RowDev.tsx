@@ -5,10 +5,7 @@ import { useMaterialDrop } from '../../hooks/useMaterialDrop'
 import { useThemeColors } from '../../../stores/theme'
 
 export default function RowDev({ id, gutter, children, styles }: CommonComponentProps) {
-  const { canDrop, dropRef, contextHolder } = useMaterialDrop(
-    ['Col', 'Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Card', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag'],
-    id,
-  )
+  const { canDrop, dropRef, contextHolder } = useMaterialDrop(id)
   const themeColors = useThemeColors()
 
   return (

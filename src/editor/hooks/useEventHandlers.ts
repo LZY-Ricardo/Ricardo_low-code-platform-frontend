@@ -20,8 +20,10 @@ import { eventExecutor } from '../utils/event-executor'
 import type { EventContext, EventType } from '../types/event'
 
 export function useEventHandlers(componentId: number) {
-    const { components, updateComponentProps } = useComponentsStore()
-    const { requestResults, variables } = useRuntimeStateStore()
+    const components = useComponentsStore((state) => state.components)
+    const updateComponentProps = useComponentsStore((state) => state.updateComponentProps)
+    const requestResults = useRuntimeStateStore((state) => state.requestResults)
+    const variables = useRuntimeStateStore((state) => state.variables)
 
     /**
      * 创建事件处理器的工厂函数

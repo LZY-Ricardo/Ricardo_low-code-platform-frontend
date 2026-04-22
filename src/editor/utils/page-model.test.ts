@@ -29,6 +29,17 @@ describe('page model', () => {
     expect(next[0].components).toEqual(baseComponents)
   })
 
+  it('keeps the same pages reference when active page components are unchanged', () => {
+    const activeComponents = [{ id: 1, name: 'Page', props: { title: 'A' }, desc: '页面' }]
+    const pages = [
+      createPage('页面 1', baseComponents),
+      createPage('页面 2', activeComponents),
+    ]
+
+    const next = replaceActivePageComponents(pages, pages[1].id, activeComponents)
+    expect(next).toBe(pages)
+  })
+
   it('duplicates a page with a new id and copied name suffix', () => {
     const pages = [createPage('首页', baseComponents)]
     const next = duplicatePage(pages, pages[0].id)

@@ -15,13 +15,20 @@ export default function ConversationPanel({ items }: ConversationPanelProps) {
       {items.map((item, index) => (
         <div
           key={`${item.role}-${index}`}
-          className={`rounded-lg border p-3 text-sm ${
+          className="rounded-lg border p-3 text-sm"
+          style={
             item.role === 'user'
-              ? 'border-blue-200 bg-blue-50'
+              ? {
+                  borderColor: 'var(--theme-primary-muted)',
+                  backgroundColor: 'var(--theme-primary-soft)',
+                }
               : item.role === 'assistant'
-                ? 'border-emerald-200 bg-emerald-50'
-                : 'border-border-light bg-bg-secondary'
-          }`}
+                ? {
+                    borderColor: 'rgba(var(--color-success), 0.22)',
+                    backgroundColor: 'var(--theme-success-soft)',
+                  }
+                : undefined
+          }
         >
           <div className="mb-1 text-xs text-text-secondary">
             {item.role}

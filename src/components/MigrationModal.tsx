@@ -73,7 +73,7 @@ export default function MigrationModal({
     <Modal
       title={
         <div className="flex items-center gap-2">
-          <CloudUploadOutlined className="text-blue-500" />
+          <CloudUploadOutlined className="text-accent" />
           <span>检测到本地项目</span>
         </div>
       }
@@ -95,7 +95,7 @@ export default function MigrationModal({
         {migrating && (
           <div className="mb-4">
             <Progress percent={progress} status="active" />
-            <p className="text-sm text-gray-500 mt-2 text-center">
+            <p className="mt-2 text-center text-sm text-text-secondary">
               正在迁移项目到云端...
             </p>
           </div>

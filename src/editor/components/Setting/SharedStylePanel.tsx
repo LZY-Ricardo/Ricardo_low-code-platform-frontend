@@ -6,8 +6,12 @@ import { useSharedStylesStore } from '../../stores/shared-styles'
 const { Text } = Typography
 
 export default function SharedStylePanel() {
-  const { curComponent, curComponentId, updateComponentSharedStyle } = useComponentsStore()
-  const { addSharedStyle, removeSharedStyle, sharedStyles } = useSharedStylesStore()
+  const curComponent = useComponentsStore((state) => state.curComponent)
+  const curComponentId = useComponentsStore((state) => state.curComponentId)
+  const updateComponentSharedStyle = useComponentsStore((state) => state.updateComponentSharedStyle)
+  const addSharedStyle = useSharedStylesStore((state) => state.addSharedStyle)
+  const removeSharedStyle = useSharedStylesStore((state) => state.removeSharedStyle)
+  const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
   const [styleName, setStyleName] = useState('')
 
   const options = useMemo(() => sharedStyles.map((item) => ({

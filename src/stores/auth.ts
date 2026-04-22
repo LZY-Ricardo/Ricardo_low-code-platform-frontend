@@ -18,6 +18,7 @@ interface AuthState {
   logout: () => void;
   checkAuth: () => Promise<void>;
   setUser: (user: User | null) => void;
+  updateToken: (token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -112,5 +113,13 @@ export const useAuthStore = create<AuthState>((set) => ({
    */
   setUser: (user: User | null) => {
     set({ user });
+  },
+
+  /**
+   * 更新 Token（刷新后调用）
+   */
+  updateToken: (token: string) => {
+    localStorage.setItem('lowcode_token', token);
+    set({ token });
   },
 }));

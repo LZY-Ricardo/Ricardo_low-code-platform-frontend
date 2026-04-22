@@ -4,7 +4,7 @@ import type { CommonComponentProps } from '../../interface'
 import { useMaterialDrop } from '../../hooks/useMaterialDrop'
 
 export default function Card({ id, title, children, styles }: CommonComponentProps) {
-    const { canDrop, dropRef, contextHolder } = useMaterialDrop(['Button', 'Container', 'Text', 'Image', 'Title', 'Input', 'Table', 'Modal', 'Tabs', 'Select', 'Switch', 'DatePicker', 'Form', 'Divider', 'Tag', 'Row', 'Col'], id)
+    const { canDrop, dropRef, contextHolder } = useMaterialDrop(id)
 
     return (
         <>

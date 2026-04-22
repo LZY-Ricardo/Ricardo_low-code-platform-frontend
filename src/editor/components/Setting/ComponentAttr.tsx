@@ -1,13 +1,21 @@
-import { useEffect } from 'react'
-import { Form, Input, Select, InputNumber } from 'antd';
+import { useEffect, useState } from 'react'
+import { Form, Input, Select, InputNumber, Button, Modal, Space } from 'antd';
 import { useComponentsStore } from '../../stores/components'
 import { useComponentConfigStore } from '../../stores/component-config';
 import type { ComponentSetter } from '../../stores/component-config';
+import AssetPanel from '../AssetPanel';
+import type { FileAsset } from '../../../api/files';
+import { resolveAssetUrl } from '../../../api/files';
+import { useProjectStore } from '../../stores/project';
 
 export default function ComponentAttr() {
     const [form] = Form.useForm();
-    const { curComponentId, curComponent, updateComponentProps } = useComponentsStore()
-    const { componentConfig } = useComponentConfigStore()
+    const curComponentId = useComponentsStore((state) => state.curComponentId)
+    const curComponent = useComponentsStore((state) => state.curComponent)
+    const updateComponentProps = useComponentsStore((state) => state.updateComponentProps)
+    const currentProject = useProjectStore((state) => state.currentProject)
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig)
+    const [assetModalOpen, setAssetModalOpen] = useState(false)
 
     // 回显
     useEffect(() => {
@@ -37,6 +45,15 @@ export default function ComponentAttr() {
         return null
     }
 
+    function handleSelectAsset(asset: FileAsset) {
+        const nextSrc = resolveAssetUrl(asset.url)
+        form.setFieldValue('src', nextSrc)
+        if (curComponentId) {
+            updateComponentProps(curComponentId, { src: nextSrc, alt: asset.originalName })
+        }
+        setAssetModalOpen(false)
+    }
+
 
 
 
@@ -62,14 +79,39 @@ export default function ComponentAttr() {
 
             {/* 当前被选中的组件，允许修改的属性 */}
             {
-                componentConfig[curComponent.name].setter?.map(setter => {
+                componentConfig[curComponent.name].setter?.map((setter: ComponentSetter) => {
+                    const isImageSrcSetter = curComponent.name === 'Image' && setter.name === 'src'
                     return (
                         <Form.Item name={setter.name} label={setter.label} key={setter.name}>
-                            {renderFormElement(setter)}
+                            {isImageSrcSetter ? (
+                                <Space.Compact style={{ width: '100%' }}>
+                                    <Input />
+                                    <Button onClick={() => setAssetModalOpen(true)}>
+                                        资源库选择
+                                    </Button>
+                                </Space.Compact>
+                            ) : renderFormElement(setter)}
                         </Form.Item>
                     )
                 })
             }
+
+            <Modal
+                title="选择资源"
+                open={assetModalOpen}
+                onCancel={() => setAssetModalOpen(false)}
+                footer={null}
+                width={720}
+                destroyOnHidden
+            >
+                <div className="h-[70vh]">
+                    <AssetPanel
+                        selectable
+                        projectId={currentProject?.id}
+                        onSelect={handleSelectAsset}
+                    />
+                </div>
+            </Modal>
         </Form>
     )
 }

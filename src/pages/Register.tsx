@@ -39,11 +39,11 @@ export default function Register() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Card className="w-full max-w-md shadow-lg">
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ backgroundImage: 'var(--surface-page)' }}>
+      <Card className="w-full max-w-md border border-border-light bg-bg-secondary shadow-lg">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">创建账户</h1>
-          <p className="text-gray-600">欢迎加入低代码编辑器</p>
+          <h1 className="mb-2 text-3xl font-bold text-text-primary">创建账户</h1>
+          <p className="text-text-secondary">欢迎加入低代码编辑器</p>
         </div>
 
         <Form
@@ -138,8 +138,8 @@ export default function Register() {
           </Form.Item>
 
           <div className="text-center">
-            <span className="text-gray-600">已有账号？</span>
-            <Link to="/login" className="ml-2 text-blue-600 hover:text-blue-700">
+            <span className="text-text-secondary">已有账号？</span>
+            <Link to="/login" className="ml-2 text-accent hover:text-accent-hover">
               去登录
             </Link>
           </div>

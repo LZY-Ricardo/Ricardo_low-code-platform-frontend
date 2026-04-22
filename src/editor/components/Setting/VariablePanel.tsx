@@ -5,7 +5,9 @@ import { useRuntimeStateStore } from '../../stores/runtime-state'
 const { Text } = Typography
 
 export default function VariablePanel() {
-  const { variables, removeVariable, setVariable } = useRuntimeStateStore()
+  const variables = useRuntimeStateStore((state) => state.variables)
+  const removeVariable = useRuntimeStateStore((state) => state.removeVariable)
+  const setVariable = useRuntimeStateStore((state) => state.setVariable)
   const entries = Object.entries(variables)
 
   const handleAdd = () => {

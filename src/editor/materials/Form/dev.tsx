@@ -1,15 +1,12 @@
-import { Form as AntdForm } from 'antd'
+import { Form as AntdForm, Tag } from 'antd'
 import type { LegacyRef } from 'react'
 import type { CommonComponentProps } from '../../interface'
 import { useMaterialDrop } from '../../hooks/useMaterialDrop'
 import { normalizeFormLayout } from './props'
 import { useThemeColors } from '../../../stores/theme'
 
-export default function Form({ id, title, layout, children, styles }: CommonComponentProps) {
-  const { canDrop, dropRef, contextHolder } = useMaterialDrop(
-    ['Button', 'Container', 'Text', 'Title', 'Input', 'Select', 'Switch', 'DatePicker', 'Divider'],
-    id,
-  )
+export default function Form({ id, title, layout, children, styles, collectData, formId }: CommonComponentProps) {
+  const { canDrop, dropRef, contextHolder } = useMaterialDrop(id)
   const themeColors = useThemeColors()
 
   return (
@@ -28,7 +25,11 @@ export default function Form({ id, title, layout, children, styles }: CommonComp
         }}
       >
         <div style={{ marginBottom: 16, fontWeight: 600 }}>
-          {typeof title === 'string' && title ? title : '表单'}
+          <div className='flex items-center gap-2'>
+            <span>{typeof title === 'string' && title ? title : '表单'}</span>
+            {collectData ? <Tag color="green">收集开启</Tag> : null}
+            {collectData && formId ? <Tag>{formId}</Tag> : null}
+          </div>
         </div>
         <AntdForm layout={normalizeFormLayout(layout)}>
           {children ?? <div style={{ color: 'rgb(var(--text-secondary))' }}>拖入表单组件</div>}

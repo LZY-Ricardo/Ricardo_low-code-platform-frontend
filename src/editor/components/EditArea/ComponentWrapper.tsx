@@ -13,8 +13,8 @@ interface ComponentWrapperProps {
  * 组件包装器，用于绑定事件处理器
  */
 export default function ComponentWrapper({ component, renderChildren }: ComponentWrapperProps) {
-    const { componentConfig } = useComponentConfigStore()
-    const { mode } = useComponentsStore()
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig)
+    const mode = useComponentsStore((state) => state.mode)
     const config = componentConfig?.[component.name]
 
     // 始终调用 hook（React Hooks 规则要求）

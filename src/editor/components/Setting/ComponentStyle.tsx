@@ -13,8 +13,10 @@ export default function ComponentStyle() {
 
     const [form] = Form.useForm();
 
-    const { curComponentId, curComponent, updateComponentStyles } = useComponentsStore();
-    const { componentConfig } = useComponentConfigStore();
+    const curComponentId = useComponentsStore((state) => state.curComponentId);
+    const curComponent = useComponentsStore((state) => state.curComponent);
+    const updateComponentStyles = useComponentsStore((state) => state.updateComponentStyles);
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
     const [css, setCss] = useState<string>(`.comp{\n\n}`);
 
     useEffect(() => {
@@ -93,7 +95,7 @@ export default function ComponentStyle() {
                 wrapperCol={{ span: 14 }}
             >
                 {
-                    componentConfig[curComponent.name]?.stylesSetter?.map(setter => (
+                    componentConfig[curComponent.name]?.stylesSetter?.map((setter: ComponentSetter) => (
                         <Form.Item key={setter.name} name={setter.name} label={setter.label}>
                             {renderFormElememt(setter)}
                         </Form.Item>

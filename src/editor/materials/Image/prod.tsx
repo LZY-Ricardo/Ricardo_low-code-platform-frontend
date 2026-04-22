@@ -1,5 +1,6 @@
 import { Image as AntdImage } from 'antd'
 import type { CommonComponentProps } from '../../interface'
+import { resolveAssetUrl } from '../../../api/files'
 
 /**
  * 从URL中提取真正的图片地址
@@ -31,7 +32,7 @@ export default function Image({ id, src, alt, width, height, styles, onClick, on
         : src
 
     // 提取真正的图片URL（如果是百度图片URL）
-    const imageSrc = extractImageUrl(rawSrc)
+    const imageSrc = resolveAssetUrl(extractImageUrl(rawSrc))
 
     return (
         <AntdImage

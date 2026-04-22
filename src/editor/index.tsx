@@ -1,6 +1,6 @@
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { message } from 'antd'
 import Header from './components/Header'
@@ -17,26 +17,60 @@ import { loadProjectMeta, saveProjectMeta } from './utils/project-meta'
 import { createDirtySnapshot, deserializeProjectSnapshot } from './utils/project-snapshot'
 import { useSharedStylesStore } from './stores/shared-styles'
 import { useThemeStore } from '../stores/theme'
+import { createDefaultEditorLayoutState, resetEditorLayoutState } from './utils/editor-layout'
+import { useCustomComponentStore } from './stores/custom-component'
 
 export default function LowcodeEditor() {
   const { projectId } = useParams<{ projectId?: string }>()
-  const { mode, components, copyComponent, curComponentId, deleteComponent, redo, setComponents, setCurComponentId, undo } = useComponentsStore()
-  const { dataSources, setDataSources, clear: clearDataSources } = useDataSourceStore()
-  const { clear: clearRuntimeState, setVariables, variables } = useRuntimeStateStore()
-  const { clear: clearSharedStyles, setSharedStyles, sharedStyles } = useSharedStylesStore()
-  const { currentThemeId, hydrateTheme } = useThemeStore()
-  const { activePageId, initializePages, loadProjects, pages, currentProject, saveCurrentProject, saveStatus, markDirty, switchProject, syncActivePageComponents } = useProjectStore()
+  const currentProjectId = useProjectStore((state) => state.currentProject?.id ?? null)
+  const mode = useComponentsStore((state) => state.mode)
+  const components = useComponentsStore((state) => state.components)
+  const copyComponent = useComponentsStore((state) => state.copyComponent)
+  const curComponentId = useComponentsStore((state) => state.curComponentId)
+  const deleteComponent = useComponentsStore((state) => state.deleteComponent)
+  const redo = useComponentsStore((state) => state.redo)
+  const setComponents = useComponentsStore((state) => state.setComponents)
+  const setCurComponentId = useComponentsStore((state) => state.setCurComponentId)
+  const undo = useComponentsStore((state) => state.undo)
+  const dataSources = useDataSourceStore((state) => state.dataSources)
+  const setDataSources = useDataSourceStore((state) => state.setDataSources)
+  const clearDataSources = useDataSourceStore((state) => state.clear)
+  const clearRuntimeState = useRuntimeStateStore((state) => state.clear)
+  const setVariables = useRuntimeStateStore((state) => state.setVariables)
+  const variables = useRuntimeStateStore((state) => state.variables)
+  const clearSharedStyles = useSharedStylesStore((state) => state.clear)
+  const setSharedStyles = useSharedStylesStore((state) => state.setSharedStyles)
+  const sharedStyles = useSharedStylesStore((state) => state.sharedStyles)
+  const currentThemeId = useThemeStore((state) => state.currentThemeId)
+  const hydrateTheme = useThemeStore((state) => state.hydrateTheme)
+  const activePageId = useProjectStore((state) => state.activePageId)
+  const initializePages = useProjectStore((state) => state.initializePages)
+  const loadProjects = useProjectStore((state) => state.loadProjects)
+  const pages = useProjectStore((state) => state.pages)
+  const currentProject = useProjectStore((state) => state.currentProject)
+  const saveCurrentProject = useProjectStore((state) => state.saveCurrentProject)
+  const saveStatus = useProjectStore((state) => state.saveStatus)
+  const markDirty = useProjectStore((state) => state.markDirty)
+  const switchProject = useProjectStore((state) => state.switchProject)
+  const syncActivePageComponents = useProjectStore((state) => state.syncActivePageComponents)
   const saveTimerRef = useRef<number | null>(null)
   const canvasShortcutScopeRef = useRef(false)
+  const [layoutState, setLayoutState] = useState(() => createDefaultEditorLayoutState())
 
   useEffect(() => {
     loadProjects()
   }, [loadProjects])
 
+  // 加载自定义组件并注册到编辑器
+  useEffect(() => {
+    useCustomComponentStore.getState().loadFromStorage()
+    useCustomComponentStore.getState().registerAllIntoEditor()
+  }, [])
+
   // 当 URL 中的 projectId 改变时，切换到对应项目
   useEffect(() => {
     const handleSwitchProject = async () => {
-      if (projectId && currentProject?.id !== projectId) {
+      if (projectId && currentProjectId !== projectId) {
         const project = await switchProject(projectId)
         if (project) {
           message.success(`已切换到项目：${project.name}`)
@@ -44,24 +78,25 @@ export default function LowcodeEditor() {
       }
     }
     handleSwitchProject()
-  }, [projectId, currentProject?.id, switchProject])
+  }, [currentProjectId, projectId, switchProject])
 
   // 当 currentProject 改变时，同步组件
   // 注意：不要依赖 updatedAt，否则保存操作会触发组件重新加载导致闪烁
   useEffect(() => {
-    if (currentProject?.components) {
-      initializePages(currentProject)
-      const embeddedSnapshot = deserializeProjectSnapshot(currentProject.components)
-      const meta = embeddedSnapshot ?? loadProjectMeta(currentProject.id)
+    const project = useProjectStore.getState().currentProject
+    if (project?.components) {
+      initializePages(project)
+      const embeddedSnapshot = deserializeProjectSnapshot(project.components)
+      const meta = embeddedSnapshot ?? loadProjectMeta(project.id)
       const activePage = meta.pages.find((page) => page.id === meta.activePageId) ?? meta.pages[0]
-      setComponents(activePage?.components ?? currentProject.components)
+      setComponents(activePage?.components ?? project.components)
       setDataSources(meta.dataSources)
       setSharedStyles(meta.sharedStyles)
       hydrateTheme(meta.themeId)
       clearRuntimeState()
       setVariables(meta.variables)
     }
-  }, [clearRuntimeState, currentProject, hydrateTheme, initializePages, setComponents, setDataSources, setSharedStyles, setVariables])
+  }, [clearRuntimeState, currentProjectId, hydrateTheme, initializePages, setComponents, setDataSources, setSharedStyles, setVariables])
 
   useEffect(() => {
     if (!currentProject) {
@@ -179,18 +214,28 @@ export default function LowcodeEditor() {
   return (
     <div className="h-[100vh] flex flex-col bg-bg-primary">
       <div className="h-[64px] flex items-center border-b border-border-light bg-bg-secondary shadow-soft">
-        <Header></Header>
+        <Header onResetLayout={() => setLayoutState((current) => resetEditorLayoutState(current))}></Header>
       </div>
       {
         mode === 'edit' ? (
-          <Allotment className="flex-1">
-            <Allotment.Pane preferredSize={240} maxSize={500} minSize={200} className="bg-bg-secondary border-r border-border-light">
+          <Allotment key={layoutState.version} className="flex-1">
+            <Allotment.Pane
+              preferredSize={layoutState.left.preferredSize}
+              maxSize={layoutState.left.maxSize}
+              minSize={layoutState.left.minSize}
+              className="bg-bg-secondary border-r border-border-light"
+            >
               <MaterialWrapper />
             </Allotment.Pane>
             <Allotment.Pane className="bg-bg-primary">
               <EditArea></EditArea>
             </Allotment.Pane>
-            <Allotment.Pane preferredSize={300} maxSize={500} minSize={300} className="bg-bg-secondary border-l border-border-light">
+            <Allotment.Pane
+              preferredSize={layoutState.right.preferredSize}
+              maxSize={layoutState.right.maxSize}
+              minSize={layoutState.right.minSize}
+              className="bg-bg-secondary border-l border-border-light"
+            >
               <Setting></Setting>
             </Allotment.Pane>
           </Allotment>

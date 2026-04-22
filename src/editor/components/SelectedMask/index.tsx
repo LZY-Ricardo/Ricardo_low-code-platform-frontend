@@ -24,7 +24,10 @@ export default function SelectedMask({ containerClassName, portalWrapperClassNam
 
     const [portalElement, setPortalElement] = useState<HTMLElement | null>(null)
 
-    const { components, copyComponent, deleteComponent, setCurComponentId } = useComponentsStore()
+    const components = useComponentsStore((state) => state.components)
+    const copyComponent = useComponentsStore((state) => state.copyComponent)
+    const deleteComponent = useComponentsStore((state) => state.deleteComponent)
+    const setCurComponentId = useComponentsStore((state) => state.setCurComponentId)
 
     // 使用 useCallback 定义 updatePosition，避免依赖问题
     const updatePosition = useCallback(() => {

@@ -4,6 +4,8 @@ export interface Project {
     id: string
     name: string
     components: Component[]
+    publishUrl?: string | null
+    deletedAt?: number | null
     createdAt: number
     updatedAt: number
 }
@@ -118,6 +120,8 @@ export class StorageManager {
             id: this.generateId(),
             name,
             components,
+            publishUrl: null,
+            deletedAt: null,
             createdAt: Date.now(),
             updatedAt: Date.now()
         }
@@ -143,6 +147,8 @@ export class StorageManager {
             typeof candidate.id === 'string' &&
             typeof candidate.name === 'string' &&
             Array.isArray(candidate.components) &&
+            (candidate.publishUrl === undefined || candidate.publishUrl === null || typeof candidate.publishUrl === 'string') &&
+            (candidate.deletedAt === undefined || candidate.deletedAt === null || typeof candidate.deletedAt === 'number') &&
             typeof candidate.createdAt === 'number' &&
             typeof candidate.updatedAt === 'number'
         )

@@ -9,15 +9,13 @@ const { Text } = Typography
 
 export default function DataSourcePanel() {
   const [form] = Form.useForm()
-  const {
-    dataSources,
-    activeDataSourceId,
-    addDataSource,
-    updateDataSource,
-    removeDataSource,
-    setActiveDataSourceId,
-  } = useDataSourceStore()
-  const { setRequestResult } = useRuntimeStateStore()
+  const dataSources = useDataSourceStore((state) => state.dataSources)
+  const activeDataSourceId = useDataSourceStore((state) => state.activeDataSourceId)
+  const addDataSource = useDataSourceStore((state) => state.addDataSource)
+  const updateDataSource = useDataSourceStore((state) => state.updateDataSource)
+  const removeDataSource = useDataSourceStore((state) => state.removeDataSource)
+  const setActiveDataSourceId = useDataSourceStore((state) => state.setActiveDataSourceId)
+  const setRequestResult = useRuntimeStateStore((state) => state.setRequestResult)
   const [messageApi, contextHolder] = message.useMessage()
 
   const activeDataSource = dataSources.find((item) => item.id === activeDataSourceId) ?? null

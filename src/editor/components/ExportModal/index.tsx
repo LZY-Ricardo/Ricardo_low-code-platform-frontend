@@ -16,8 +16,8 @@ interface ExportModalProps {
  * 导出弹窗组件
  */
 export default function ExportModal({ visible, onClose }: ExportModalProps) {
-  const { components } = useComponentsStore()
-  const { currentProject } = useProjectStore()
+  const components = useComponentsStore((state) => state.components)
+  const currentProject = useProjectStore((state) => state.currentProject)
   const themeColors = useThemeColors()
 
   // 导出格式

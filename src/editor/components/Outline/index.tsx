@@ -8,8 +8,11 @@ import { getOutlineDropTarget } from '../../utils/outline-drop'
 // 1. Tree 组件展示
 // 2. json 在仓库中
 export default function Outline() {
-    const { components, curComponentId, moveComponent, setCurComponentId } = useComponentsStore((state) => state)
-    const { componentConfig } = useComponentConfigStore()
+    const components = useComponentsStore((state) => state.components)
+    const curComponentId = useComponentsStore((state) => state.curComponentId)
+    const moveComponent = useComponentsStore((state) => state.moveComponent)
+    const setCurComponentId = useComponentsStore((state) => state.setCurComponentId)
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig)
     const treeData = components as unknown as NonNullable<TreeProps['treeData']>
     const [messageApi, contextHolder] = message.useMessage()
 

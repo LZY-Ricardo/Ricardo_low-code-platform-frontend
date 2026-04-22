@@ -41,7 +41,7 @@ export default function CssEditor(props: Props) {
 
     if (hasError) {
         return (
-            <div className="h-full flex items-center justify-center text-gray-500">
+            <div className="flex h-full items-center justify-center text-text-secondary">
                 <div className="text-center">
                     <div>编辑器加载失败</div>
                     <div className="text-sm mt-2">请刷新页面重试</div>
@@ -53,7 +53,7 @@ export default function CssEditor(props: Props) {
     return (
         <div className="relative h-full">
             {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-bg-secondary">
                     <Spin size="large" tip="加载编辑器..." />
                 </div>
             )}

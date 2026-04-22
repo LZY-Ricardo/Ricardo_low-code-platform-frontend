@@ -1,6 +1,7 @@
 import { Tooltip } from 'antd'
 import { useDrag } from 'react-dnd'
 import type { LegacyRef } from 'react'
+import { createMaterialDragItem, MATERIAL_DND_TYPE } from '../../utils/material-dnd'
 
 export interface MaterialItemProps {
   name: string
@@ -9,11 +10,9 @@ export interface MaterialItemProps {
 
 export default function MaterialItem(props: MaterialItemProps) {
   const [, dragRef] = useDrag(() => ({
-    type: props.name,
-    item: {  // 被拖动的内容
-      type: props.name
-    }
-  }))
+    type: MATERIAL_DND_TYPE,
+    item: createMaterialDragItem(props.name),
+  }), [props.name])
   
   return (
     <Tooltip title={props.tooltip} mouseEnterDelay={0.25}>

@@ -27,7 +27,7 @@ interface ComponentWithEventsProps {
 }
 
 export default function ComponentWithEvents({ component, renderChildren }: ComponentWithEventsProps) {
-    const { componentConfig } = useComponentConfigStore()
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig)
     const config = componentConfig?.[component.name]
     const variables = useRuntimeStateStore((state) => state.variables)
     const requestResults = useRuntimeStateStore((state) => state.requestResults)

@@ -20,6 +20,36 @@ export interface EditorTheme {
   tokens: ThemeTokens
 }
 
+function rgbTripletToRgba(value: string, alpha: number): string {
+  const [r, g, b] = value.split(' ').map(Number)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+export function getThemeCssVariables(theme: EditorTheme): Record<string, string> {
+  const { tokens } = theme
+  return {
+    '--bg-primary': tokens.bgPrimary,
+    '--bg-secondary': tokens.bgSecondary,
+    '--border-light': tokens.borderLight,
+    '--text-primary': tokens.textPrimary,
+    '--text-secondary': tokens.textSecondary,
+    '--color-primary': tokens.colorPrimary,
+    '--color-primary-hover': tokens.colorPrimaryHover,
+    '--color-success': tokens.colorSuccess,
+    '--color-danger': tokens.colorDanger,
+    '--scrollbar-thumb': tokens.scrollbarThumb,
+    '--scrollbar-track': tokens.scrollbarTrack,
+    '--theme-primary-soft': rgbTripletToRgba(tokens.colorPrimary, 0.08),
+    '--theme-primary-muted': rgbTripletToRgba(tokens.colorPrimary, 0.14),
+    '--theme-primary-strong': rgbTripletToRgba(tokens.colorPrimary, 0.22),
+    '--theme-success-soft': rgbTripletToRgba(tokens.colorSuccess, 0.14),
+    '--theme-danger-soft': rgbTripletToRgba(tokens.colorDanger, 0.14),
+    '--surface-muted': `linear-gradient(180deg, rgb(${tokens.bgSecondary}) 0%, rgba(${tokens.bgPrimary}, 0.92) 100%)`,
+    '--surface-page': `linear-gradient(180deg, ${rgbTripletToRgba(tokens.colorPrimary, 0.12)} 0%, rgba(${tokens.bgPrimary}, 0.96) 22%, rgb(${tokens.bgPrimary}) 100%)`,
+    '--surface-hero': `linear-gradient(180deg, ${rgbTripletToRgba(tokens.colorPrimary, 0.14)} 0%, rgba(255, 255, 255, 0.95) 42%, rgba(255, 255, 255, 0.98) 100%)`,
+  }
+}
+
 export const THEME_PRESETS: EditorTheme[] = [
   {
     id: 'ocean',

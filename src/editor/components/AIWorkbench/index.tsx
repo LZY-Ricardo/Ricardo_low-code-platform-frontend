@@ -20,7 +20,6 @@ import { toComponentEvent } from '../../utils/action-draft';
 import { analyzePageSuggestions } from '../../utils/insights';
 import { findReusableStructures } from '../../utils/reuse-detector';
 import { buildTemplatePageFromSubtree } from '../../utils/reusable-template';
-import { saveTemplate } from '../../utils/template-storage';
 import { useTemplateStore } from '../../../stores/template';
 import TaskStatusBar from './TaskStatusBar';
 import ConversationPanel from './ConversationPanel';
@@ -36,34 +35,39 @@ const TASK_OPTIONS: Array<{ label: string; value: AiWorkbenchTaskType }> = [
 ];
 
 export default function AIWorkbench() {
-  const {
-    activeTaskType,
-    status,
-    prompt,
-    conversation,
-    suggestions,
-  history,
-  applyLog,
-  lastError,
-    setActiveTaskType,
-    setStatus,
-    setPrompt,
-    pushConversation,
-    setSuggestions,
-  pushHistory,
-  pushApplyLog,
-  setLastError,
-  hydrateSnapshot,
-  persistSnapshot,
-  clearSession,
-} = useAiWorkbenchStore();
-  const { pushTurn, summary: conversationSummary } = useAiSessionStore();
-  const { components, curComponentId, curComponent, replaceComponents, updateComponentBindings, updateComponentEvents } = useComponentsStore();
-  const { dataSources } = useDataSourceStore();
-  const { variables, setRequestResult } = useRuntimeStateStore();
-  const { sharedStyles } = useSharedStylesStore();
-  const { currentThemeId } = useThemeStore();
-  const { currentProject } = useProjectStore();
+  const activeTaskType = useAiWorkbenchStore((state) => state.activeTaskType);
+  const status = useAiWorkbenchStore((state) => state.status);
+  const prompt = useAiWorkbenchStore((state) => state.prompt);
+  const conversation = useAiWorkbenchStore((state) => state.conversation);
+  const suggestions = useAiWorkbenchStore((state) => state.suggestions);
+  const history = useAiWorkbenchStore((state) => state.history);
+  const applyLog = useAiWorkbenchStore((state) => state.applyLog);
+  const lastError = useAiWorkbenchStore((state) => state.lastError);
+  const setActiveTaskType = useAiWorkbenchStore((state) => state.setActiveTaskType);
+  const setStatus = useAiWorkbenchStore((state) => state.setStatus);
+  const setPrompt = useAiWorkbenchStore((state) => state.setPrompt);
+  const pushConversation = useAiWorkbenchStore((state) => state.pushConversation);
+  const setSuggestions = useAiWorkbenchStore((state) => state.setSuggestions);
+  const pushHistory = useAiWorkbenchStore((state) => state.pushHistory);
+  const pushApplyLog = useAiWorkbenchStore((state) => state.pushApplyLog);
+  const setLastError = useAiWorkbenchStore((state) => state.setLastError);
+  const hydrateSnapshot = useAiWorkbenchStore((state) => state.hydrateSnapshot);
+  const persistSnapshot = useAiWorkbenchStore((state) => state.persistSnapshot);
+  const clearSession = useAiWorkbenchStore((state) => state.clearSession);
+  const pushTurn = useAiSessionStore((state) => state.pushTurn);
+  const conversationSummary = useAiSessionStore((state) => state.summary);
+  const components = useComponentsStore((state) => state.components);
+  const curComponentId = useComponentsStore((state) => state.curComponentId);
+  const curComponent = useComponentsStore((state) => state.curComponent);
+  const replaceComponents = useComponentsStore((state) => state.replaceComponents);
+  const updateComponentBindings = useComponentsStore((state) => state.updateComponentBindings);
+  const updateComponentEvents = useComponentsStore((state) => state.updateComponentEvents);
+  const dataSources = useDataSourceStore((state) => state.dataSources);
+  const variables = useRuntimeStateStore((state) => state.variables);
+  const setRequestResult = useRuntimeStateStore((state) => state.setRequestResult);
+  const sharedStyles = useSharedStylesStore((state) => state.sharedStyles);
+  const currentThemeId = useThemeStore((state) => state.currentThemeId);
+  const currentProject = useProjectStore((state) => state.currentProject);
   const createTemplate = useTemplateStore((state) => state.createTemplate);
 
   const [generateResult, setGenerateResult] = useState<Awaited<ReturnType<typeof generatePage>> | null>(null);
@@ -300,19 +304,7 @@ export default function AIWorkbench() {
       });
       message.success('已提取到模板中心');
     } catch {
-      saveTemplate({
-        id: `tpl_reuse_${Date.now()}`,
-        name: templateName,
-        description: '由重复结构自动提取',
-        components: templateComponents,
-        pages: templatePages,
-        dataSources,
-        variables,
-        sharedStyles,
-        themeId: currentThemeId,
-        builtIn: false,
-      });
-      message.warning('模板中心保存失败，已回退到本地模板');
+      message.error('模板中心保存失败，请稍后重试');
     }
   };
 

@@ -19,7 +19,7 @@ export default function RouteErrorBoundary() {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-bg-primary px-4" style={{ backgroundImage: 'var(--surface-page)' }}>
       <Result
         status="error"
         title="页面加载失败"

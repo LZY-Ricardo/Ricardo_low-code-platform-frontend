@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { create } from "zustand";
+import type { StoreApi, UseBoundStore } from 'zustand'
 import type { CommonComponentProps } from "../interface";
 import ContainerDev from "../materials/Container/dev";
 import ContainerProd from "../materials/Container/prod";
@@ -73,10 +74,13 @@ export interface State {
 
 export interface Action {
     registerComponent: (name: string, componentConfig: ComponentConfig) => void
+    unregisterComponent: (name: string) => void
 }
 
+type ComponentConfigStore = State & Action
+
 // 每一个名字对应的组件具体是哪一个
-export const useComponentConfigStore = create<State & Action>(
+export const useComponentConfigStore: UseBoundStore<StoreApi<ComponentConfigStore>> = create<ComponentConfigStore>(
     (set) => ({
         componentConfig: {
             Container: {
@@ -554,6 +558,8 @@ export const useComponentConfigStore = create<State & Action>(
                 defaultProps: {
                     title: '表单',
                     layout: 'vertical',
+                    collectData: false,
+                    formId: '',
                 },
                 desc: '表单',
                 tooltip: '用来填写并提交信息',
@@ -576,6 +582,20 @@ export const useComponentConfigStore = create<State & Action>(
                             { label: '水平', value: 'horizontal' },
                             { label: '内联', value: 'inline' },
                         ]
+                    },
+                    {
+                        name: 'collectData',
+                        label: '数据收集',
+                        type: 'select',
+                        options: [
+                            { label: '关闭', value: false },
+                            { label: '启用', value: true },
+                        ]
+                    },
+                    {
+                        name: 'formId',
+                        label: '表单ID',
+                        type: 'input',
                     }
                 ],
                 stylesSetter: [
@@ -719,6 +739,14 @@ export const useComponentConfigStore = create<State & Action>(
                         [name]: componentConfig
                     }
                 }
+            })
+        },
+
+        unregisterComponent: (name) => {
+            set((state) => {
+                const rest = { ...state.componentConfig }
+                delete rest[name]
+                return { componentConfig: rest }
             })
         }
     })
